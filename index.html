@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Parchate Medellín</title>
+    <!-- Leaflet CSS for Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #0f0c1b;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .app-view {
+            display: none;
+        }
+        .app-view.active {
+            display: block;
+        }
+        #map {
+            width: 100%;
+            height: calc(100vh - 280px);
+            border-radius: 1rem;
+            z-index: 10;
+        }
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4a3f6b;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body class="bg-[#0f0c1b] text-white flex flex-col min-h-screen selection:bg-pink-500 selection:text-white">
+
+    <!-- Mobile Frame Wrapper Container -->
+    <div class="w-full max-w-md mx-auto bg-[#0f0c1b] min-h-screen flex flex-col shadow-2xl relative border-x border-purple-950">
+
+        <!-- Header Mobile -->
+        <header class="flex justify-between items-center px-4 py-3 bg-[#18122b]/90 backdrop-blur-md border-b border-[#2d234a] sticky top-0 z-50">
+            <h1 class="text-base font-black tracking-wider bg-gradient-to-r from-pink-500 via-purple-400 to-indigo-400 bg-clip-text text-transparent">PARCHATE MDE</h1>
+            
+            <!-- Mode Selector -->
+            <div class="relative flex items-center">
+                <select id="modeSelector" onchange="changeAppMode(this.value)" class="bg-[#2d234a] text-[11px] font-bold px-2.5 py-1.5 rounded-xl border border-purple-500/30 focus:outline-none text-white shadow-inner">
+                    <option value="tranki">🟢 Tranki</option>
+                    <option value="agrandao">🔥 Agrandao</option>
+                </select>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 pb-24 overflow-y-auto">
+
+            <!-- TAB 1: TOP FUEGO -->
+            <section id="tab-descubrir" class="app-view active p-3.5 space-y-3.5">
+                
+                <!-- Asistente Gemini Box Móvil -->
+                <div class="bg-[#1f1635] border border-purple-500/20 rounded-2xl p-3 shadow-md">
+                    <div class="flex items-center gap-1.5 mb-2 text-purple-400 font-bold text-xs">
+                        <i class="fa-solid fa-wand-magic-sparkles text-pink-500"></i>
+                        <span>Parchate AI (Gemini)</span>
+                    </div>
+                    <div class="flex gap-1.5">
+                        <input type="text" id="geminiInput" placeholder="¿Qué hay top hoy en Provenza?" class="flex-1 bg-[#120c22] border border-purple-900 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-purple-500 text-white placeholder-gray-500">
+                        <button onclick="askGemini()" class="bg-gradient-to-r from-pink-600 to-purple-600 text-white px-3 py-2 rounded-xl text-xs font-bold active:scale-95 transition shadow">Preguntar</button>
+                    </div>
+                    <div id="geminiResponse" class="mt-2 text-[11px] text-gray-300 bg-[#120c22] p-2.5 rounded-xl border border-purple-950/50 hidden leading-relaxed"></div>
+                </div>
+
+                <!-- Filtros Rápidos Completos -->
+                <div class="flex gap-1.5 overflow-x-auto pb-1 text-[11px]">
+                    <button onclick="filterFeed('todo')" id="filter-todo" class="bg-pink-600 text-white px-3 py-1.5 rounded-xl font-bold whitespace-nowrap shadow">🔥 Todo</button>
+                    <button onclick="filterFeed('cerca')" id="filter-cerca" class="bg-[#1f1635] text-purple-300 border border-purple-900/50 px-3 py-1.5 rounded-xl font-medium whitespace-nowrap">📍 Cerca (< 1 km)</button>
+                    <button onclick="filterFeed('locales')" id="filter-locales" class="bg-[#1f1635] text-purple-300 border border-purple-900/50 px-3 py-1.5 rounded-xl font-medium whitespace-nowrap">🍹 Locales & Bares</button>
+                    <button onclick="filterFeed('cafes')" id="filter-cafes" class="bg-[#1f1635] text-purple-300 border border-purple-900/50 px-3 py-1.5 rounded-xl font-medium whitespace-nowrap">☕ Cafés</button>
+                    <button onclick="filterFeed('rumba')" id="filter-rumba" class="bg-[#1f1635] text-purple-300 border border-purple-900/50 px-3 py-1.5 rounded-xl font-medium whitespace-nowrap">🎉 Rumba</button>
+                </div>
+
+                <!-- Selector de Vista: Lista o Mapa -->
+                <div class="flex bg-[#18122b] p-1 rounded-xl border border-purple-900/40 text-[11px]">
+                    <button onclick="switchFeedView('lista')" id="btn-view-lista" class="flex-1 py-2 rounded-lg font-bold bg-pink-600 text-white transition shadow">📸 Lista (Multimedia)</button>
+                    <button onclick="switchFeedView('mapa')" id="btn-view-mapa" class="flex-1 py-2 rounded-lg font-medium text-gray-400 transition">🗺️ Mapa MDE</button>
+                </div>
+
+                <!-- VISTA DE LISTA -->
+                <div id="feed-lista-view" class="space-y-3.5">
+                    <div class="bg-gradient-to-r from-purple-900/40 to-pink-900/40 border border-purple-500/30 rounded-2xl p-3.5 text-center shadow-md">
+                        <h3 class="text-xs font-bold mb-1 text-pink-300">¡Sube tu foto o video de tu parche!</h3>
+                        <p class="text-[10px] text-gray-300 mb-2.5">Aparecerá en el Top Fuego de todos tus amigos.</p>
+                        <label class="inline-block bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-bold px-4 py-2 rounded-xl cursor-pointer transition shadow">
+                            <i class="fa-solid fa-cloud-arrow-up mr-1.5"></i> Seleccionar de Galería
+                            <input type="file" id="mediaUpload" accept="image/*,video/*" class="hidden" onchange="handleMediaUpload(event)">
+                        </label>
+                    </div>
+
+                    <!-- Contenedor dinámico de Parches -->
+                    <div id="dynamicParchesContainer" class="space-y-3.5">
+                        
+                        <!-- Parche Card 1 -->
+                        <div class="bg-[#1f1635] border border-[#3b2d63] rounded-2xl p-4 relative overflow-hidden shadow-xl" data-category="locales cerca rumba" id="card-1">
+                            <div class="flex justify-between items-center mb-1.5">
+                                <span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-0.5 rounded-lg text-[10px] font-bold tracking-wide uppercase inline-flex items-center gap-1" id="tag-1">
+                                    PROMO SPOT 🍹
+                                </span>
+                                <div class="bg-[#2d234a] border border-purple-900/60 px-2.5 py-1 rounded-xl text-xs font-bold text-orange-400 flex items-center gap-1 shadow-inner">
+                                    🔥 <span id="count-1">45</span>
+                                </div>
+                            </div>
+
+                            <h3 class="font-bold text-base text-white leading-snug">Rumba & 2x1 Cócteles en Provenza</h3>
+                            
+                            <p class="text-[11px] text-gray-400 mt-0.5 mb-3 flex items-center">
+                                <i class="fa-solid fa-location-dot text-pink-500 mr-1.5"></i> Provenza, El Poblado
+                            </p>
+                            
+                            <div class="relative rounded-2xl overflow-hidden bg-black/40 h-44 mb-3 border border-purple-900/30 group">
+                                <img src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=60" alt="Provenza" class="w-full h-full object-cover">
+                                <button onclick="openExternalNav('Provenza, El Poblado, Medellin')" class="absolute top-2.5 right-2.5 bg-emerald-600/90 hover:bg-emerald-500 active:scale-95 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl shadow-lg backdrop-blur-sm flex items-center gap-1.5 transition">
+                                    <i class="fa-solid fa-map-location-dot"></i> Ubicar
+                                </button>
+                            </div>
+
+                            <div class="grid grid-cols-3 gap-2">
+                                <button onclick="toggleAxFuego(1)" id="btn-fuego-1" class="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 active:scale-95 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 shadow transition">
+                                    🔥 A fuego
+                                </button>
+                                <button onclick="openOpinoModal('Rumba & 2x1 Cócteles en Provenza')" class="bg-[#2d234a] hover:bg-purple-900/50 border border-purple-500/20 active:scale-95 text-purple-200 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 transition">
+                                    💬 Opino
+                                </button>
+                                <button onclick="shareToProfile('Rumba & 2x1 Cócteles en Provenza', 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=60')" class="bg-[#3b1c3a] hover:bg-[#4a2349] border border-pink-500/30 active:scale-95 text-pink-300 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 transition" title="Compartir x2 en perfil">
+                                    🔄 x2
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Parche Card 2 -->
+                        <div class="bg-[#1f1635] border border-[#3b2d63] rounded-2xl p-4 relative overflow-hidden shadow-xl" data-category="locales cerca" id="card-2">
+                            <div class="flex justify-between items-center mb-1.5">
+                                <span class="bg-purple-500/20 text-purple-300 border border-purple-500/40 px-2.5 py-0.5 rounded-lg text-[10px] font-bold tracking-wide uppercase inline-flex items-center gap-1" id="tag-2">
+                                    TARDEO 🌅
+                                </span>
+                                <div class="bg-[#2d234a] border border-purple-900/60 px-2.5 py-1 rounded-xl text-xs font-bold text-orange-400 flex items-center gap-1 shadow-inner">
+                                    🔥 <span id="count-2">18</span>
+                                </div>
+                            </div>
+
+                            <h3 class="font-bold text-base text-white leading-snug">Cena y Vistas en Las Palmas</h3>
+                            
+                            <p class="text-[11px] text-gray-400 mt-0.5 mb-3 flex items-center">
+                                <i class="fa-solid fa-location-dot text-pink-500 mr-1.5"></i> Vía Las Palmas, Medellín
+                            </p>
+                            
+                            <div class="relative rounded-2xl overflow-hidden bg-black/40 h-44 mb-3 border border-purple-900/30 group">
+                                <img src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=500&auto=format&fit=crop&q=60" alt="Las Palmas" class="w-full h-full object-cover">
+                                <button onclick="openExternalNav('Km 8 Via Las Palmas, Medellin')" class="absolute top-2.5 right-2.5 bg-emerald-600/90 hover:bg-emerald-500 active:scale-95 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl shadow-lg backdrop-blur-sm flex items-center gap-1.5 transition">
+                                    <i class="fa-solid fa-map-location-dot"></i> Ubicar
+                                </button>
+                            </div>
+
+                            <div class="grid grid-cols-3 gap-2">
+                                <button onclick="toggleAxFuego(2)" id="btn-fuego-2" class="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 active:scale-95 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 shadow transition">
+                                    🔥 A fuego
+                                </button>
+                                <button onclick="openOpinoModal('Cena y Vistas en Las Palmas')" class="bg-[#2d234a] hover:bg-purple-900/50 border border-purple-500/20 active:scale-95 text-purple-200 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 transition">
+                                    💬 Opino
+                                </button>
+                                <button onclick="shareToProfile('Cena y Vistas en Las Palmas', 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=500&auto=format&fit=crop&q=60')" class="bg-[#3b1c3a] hover:bg-[#4a2349] border border-pink-500/30 active:scale-95 text-pink-300 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 transition">
+                                    🔄 x2
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Parche Card 3 -->
+                        <div class="bg-[#1f1635] border border-[#3b2d63] rounded-2xl p-4 relative overflow-hidden shadow-xl" data-category="cafes cerca" id="card-3">
+                            <div class="flex justify-between items-center mb-1.5">
+                                <span class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2.5 py-0.5 rounded-lg text-[10px] font-bold tracking-wide uppercase inline-flex items-center gap-1" id="tag-3">
+                                    CAFÉ & PARCHE ☕
+                                </span>
+                                <div class="bg-[#2d234a] border border-purple-900/60 px-2.5 py-1 rounded-xl text-xs font-bold text-orange-400 flex items-center gap-1 shadow-inner">
+                                    🔥 <span id="count-3">12</span>
+                                </div>
+                            </div>
+
+                            <h3 class="font-bold text-base text-white leading-snug">Café Especial Laureles</h3>
+                            
+                            <p class="text-[11px] text-gray-400 mt-0.5 mb-3 flex items-center">
+                                <i class="fa-solid fa-location-dot text-pink-500 mr-1.5"></i> Laureles, Medellín
+                            </p>
+                            
+                            <div class="relative rounded-2xl overflow-hidden bg-black/40 h-44 mb-3 border border-purple-900/30 group">
+                                <img src="https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=500&auto=format&fit=crop&q=60" alt="Cafe" class="w-full h-full object-cover">
+                                <button onclick="openExternalNav('Circular 74 # 39-20, Laureles, Medellin')" class="absolute top-2.5 right-2.5 bg-emerald-600/90 hover:bg-emerald-500 active:scale-95 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl shadow-lg backdrop-blur-sm flex items-center gap-1.5 transition">
+                                    <i class="fa-solid fa-map-location-dot"></i> Ubicar
+                                </button>
+                            </div>
+
+                            <div class="grid grid-cols-3 gap-2">
+                                <button onclick="toggleAxFuego(3)" id="btn-fuego-3" class="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 active:scale-95 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 shadow transition">
+                                    🔥 A fuego
+                                </button>
+                                <button onclick="openOpinoModal('Café Especial Laureles')" class="bg-[#2d234a] hover:bg-purple-900/50 border border-purple-500/20 active:scale-95 text-purple-200 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 transition">
+                                    💬 Opino
+                                </button>
+                                <button onclick="shareToProfile('Café Especial Laureles', 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=500&auto=format&fit=crop&q=60')" class="bg-[#3b1c3a] hover:bg-[#4a2349] border border-pink-500/30 active:scale-95 text-pink-300 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 transition">
+                                    🔄 x2
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- VISTA DE MAPA -->
+                <div id="feed-mapa-view" class="space-y-2.5 hidden">
+                    <div class="bg-purple-900/30 border border-purple-500/30 p-2.5 rounded-xl text-[11px] text-purple-200 flex justify-between items-center">
+                        <span>🗺️ Toca cualquier punto del mapa para crear un parche ahí.</span>
+                        <button onclick="openExternalNav('Medellin')" class="bg-emerald-600 text-white px-2.5 py-1 rounded-lg font-bold">Abrir Maps</button>
+                    </div>
+                    <div id="map" class="border border-purple-500/30 rounded-2xl shadow-lg"></div>
+                </div>
+
+                <!-- Botón Crear Parche -->
+                <button onclick="openCreateModal()" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 py-3 rounded-2xl font-bold text-xs shadow-lg active:scale-95 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-plus text-sm"></i> Crear Parche Rápido
+                </button>
+            </section>
+
+            <!-- TAB 2: RADAR & FEED DE AGREGADOS -->
+            <section id="tab-mapa" class="app-view p-3.5 space-y-4">
+                <div class="bg-gradient-to-r from-pink-900/30 to-purple-900/30 border border-purple-500/30 p-3 rounded-2xl flex justify-between items-center">
+                    <div>
+                        <h3 class="font-bold text-xs text-pink-400">📡 Radar de Cercanos & Agregados</h3>
+                        <p class="text-[10px] text-gray-300">Gente rodando cerca y sus contenidos compartidos.</p>
+                    </div>
+                    <button onclick="toggleRadarActivos()" id="radarToggleBtn" class="bg-green-600 text-white text-[11px] px-3 py-1.5 rounded-xl font-bold shadow">Activo</button>
+                </div>
+
+                <!-- CARRUSEL HORIZONTAL DE PERSONAS CERCANAS -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <h4 class="text-xs font-bold text-purple-300"><i class="fa-solid fa-users-viewfinder mr-1 text-pink-500"></i> Personas Cercanas</h4>
+                        <button onclick="openFullRadarModal()" class="text-[10px] text-pink-400 font-bold hover:underline">Ver más (<span id="radarCountNum">4</span>)</button>
+                    </div>
+                    <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-none" id="radarCarousel">
+                        <div class="flex flex-col items-center bg-[#1f1635] border border-purple-900/50 p-2.5 rounded-2xl min-w-[85px] cursor-pointer hover:border-pink-500 transition shadow" onclick="openUserProfile('Carlos M.', 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80', 'A 400m en El Poblado', ['Rumba Crossover en Provenza'], ['https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=60'])">
+                            <div class="relative mb-1">
+                                <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80" class="w-12 h-12 rounded-full object-cover border-2 border-green-500">
+                                <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#1f1635]"></div>
+                            </div>
+                            <span class="font-bold text-[11px] text-white truncate w-20 text-center">Carlos M.</span>
+                            <span class="text-[9px] text-gray-400">400m</span>
+                        </div>
+                        <div class="flex flex-col items-center bg-[#1f1635] border border-purple-900/50 p-2.5 rounded-2xl min-w-[85px] cursor-pointer hover:border-pink-500 transition shadow" onclick="openUserProfile('Sofía R.', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80', 'A 1.2km en Envigado', ['Cena y Vistas en Las Palmas'], ['https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=500&auto=format&fit=crop&q=60'])">
+                            <div class="relative mb-1">
+                                <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80" class="w-12 h-12 rounded-full object-cover border-2 border-purple-500">
+                                <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#1f1635]"></div>
+                            </div>
+                            <span class="font-bold text-[11px] text-white truncate w-20 text-center">Sofía R.</span>
+                            <span class="text-[9px] text-gray-400">1.2km</span>
+                        </div>
+                        <div class="flex flex-col items-center bg-[#1f1635] border border-purple-900/50 p-2.5 rounded-2xl min-w-[85px] cursor-pointer hover:border-pink-500 transition shadow" onclick="openUserProfile('Andrés P.', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80', 'A 800m en Laureles', ['Café Especial Laureles'], ['https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=500&auto=format&fit=crop&q=60'])">
+                            <div class="relative mb-1">
+                                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80" class="w-12 h-12 rounded-full object-cover border-2 border-pink-500">
+                                <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#1f1635]"></div>
+                            </div>
+                            <span class="font-bold text-[11px] text-white truncate w-20 text-center">Andrés P.</span>
+                            <span class="text-[9px] text-gray-400">800m</span>
+                        </div>
+                        <div class="flex flex-col items-center bg-[#1f1635] border border-purple-900/50 p-2.5 rounded-2xl min-w-[85px] cursor-pointer hover:border-pink-500 transition shadow" onclick="openUserProfile('Valeria G.', 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80', 'A 1.5km en El Poblado', ['Rumba Crossover en Provenza'], ['https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=60'])">
+                            <div class="relative mb-1">
+                                <img src="https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80" class="w-12 h-12 rounded-full object-cover border-2 border-purple-500">
+                                <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#1f1635]"></div>
+                            </div>
+                            <span class="font-bold text-[11px] text-white truncate w-20 text-center">Valeria G.</span>
+                            <span class="text-[9px] text-gray-400">1.5km</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FEED DE LO COMPARTIDO POR MIS AGREGADOS -->
+                <h4 class="text-xs font-bold text-purple-300 pt-2"><i class="fa-solid fa-rotate mr-1 text-pink-500"></i> Lo compartido por tus agregados</h4>
+                <div id="radarSharedFeedContainer" class="space-y-3">
+                    <div class="bg-[#1f1635] border border-purple-900/60 p-3 rounded-2xl shadow">
+                        <div class="flex items-center gap-2.5 mb-2 cursor-pointer" onclick="openUserProfile('Carlos M.', 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80', 'A 400m en El Poblado', ['Rumba Crossover en Provenza'], ['https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=60'])">
+                            <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80" class="w-8 h-8 rounded-full object-cover border border-pink-500">
+                            <div>
+                                <span class="font-bold text-xs text-white block hover:text-pink-400">Carlos M. <span class="text-[10px] text-pink-300 font-normal">compartió x2</span></span>
+                                <span class="text-[9px] text-gray-400">Hace 15 min</span>
+                            </div>
+                        </div>
+                        <div class="rounded-xl overflow-hidden bg-black/40 h-36 border border-purple-900/40 mb-2 cursor-pointer" onclick="openMediaDetailModal('Rumba Crossover en Provenza', 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=60', 'Carlos M.')">
+                            <img src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=60" class="w-full h-full object-cover">
+                        </div>
+                        <p class="text-xs text-gray-200 font-medium">🔥 Rumba Crossover en Provenza</p>
+                    </div>
+
+                    <div class="bg-[#1f1635] border border-purple-900/60 p-3 rounded-2xl shadow">
+                        <div class="flex items-center gap-2.5 mb-2 cursor-pointer" onclick="openUserProfile('Sofía R.', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80', 'A 1.2km en Envigado', ['Cena y Vistas en Las Palmas'], ['https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=500&auto=format&fit=crop&q=60'])">
+                            <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80" class="w-8 h-8 rounded-full object-cover border border-purple-500">
+                            <div>
+                                <span class="font-bold text-xs text-white block hover:text-pink-400">Sofía R. <span class="text-[10px] text-pink-300 font-normal">compartió x2</span></span>
+                                <span class="text-[9px] text-gray-400">Hace 1 hora</span>
+                            </div>
+                        </div>
+                        <div class="rounded-xl overflow-hidden bg-black/40 h-36 border border-purple-900/40 mb-2 cursor-pointer" onclick="openMediaDetailModal('Cena y Vistas en Las Palmas', 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=500&auto=format&fit=crop&q=60', 'Sofía R.')">
+                            <img src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=500&auto=format&fit=crop&q=60" class="w-full h-full object-cover">
+                        </div>
+                        <p class="text-xs text-gray-200 font-medium">✨ Cena y Vistas en Las Palmas</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: CHATS PRIVADOS -->
+            <section id="tab-chats" class="app-view p-3.5 space-y-3.5">
+                <h2 class="text-sm font-black text-pink-400 flex items-center gap-2">
+                    <i class="fa-solid fa-comments"></i> Mensajes Privados
+                </h2>
+                <div id="chatsListContainer" class="space-y-2.5">
+                    <div class="bg-[#1f1635] border border-purple-900/50 p-3 rounded-2xl flex items-center justify-between hover:bg-[#2d234a] transition shadow">
+                        <div class="flex items-center gap-3 cursor-pointer" onclick="openUserProfile('Carlos M.', 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80', 'A 400m en El Poblado', ['Rumba Crossover en Provenza'], ['https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=60'])">
+                            <div class="relative">
+                                <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80" alt="Avatar" class="w-11 h-11 rounded-full object-cover border border-pink-500">
+                                <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#1f1635]"></div>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-xs text-white hover:text-pink-400">Carlos M.</h4>
+                                <p class="text-[11px] text-gray-300 truncate w-40">¡Ey bro, armemos el parche hoy en Provenza!</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[9px] text-pink-400 bg-pink-900/30 px-2 py-1 rounded-lg font-bold">Nuevo</span>
+                            <button onclick="openChatDetail('Carlos M.')" class="bg-purple-600 text-white px-2.5 py-1.5 rounded-xl text-[10px] font-bold"><i class="fa-solid fa-paper-plane"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="bg-[#1f1635] border border-purple-900/50 p-3 rounded-2xl flex items-center justify-between hover:bg-[#2d234a] transition shadow">
+                        <div class="flex items-center gap-3 cursor-pointer" onclick="openUserProfile('Sofía R.', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80', 'A 1.2km en Envigado', ['Cena y Vistas en Las Palmas'], ['https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=500&auto=format&fit=crop&q=60'])">
+                            <div class="relative">
+                                <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80" alt="Avatar" class="w-11 h-11 rounded-full object-cover border border-purple-500">
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-xs text-white hover:text-pink-400">Sofía R.</h4>
+                                <p class="text-[11px] text-gray-400 truncate w-40">¿A qué hora nos vemos en el café?</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[9px] text-gray-400">Ayer</span>
+                            <button onclick="openChatDetail('Sofía R.')" class="bg-purple-600 text-white px-2.5 py-1.5 rounded-xl text-[10px] font-bold"><i class="fa-solid fa-paper-plane"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 4: MI PARCHE Y PERFIL -->
+            <section id="tab-miparche" class="app-view p-3.5 space-y-3.5">
+                <h2 class="text-sm font-black text-purple-300">Mi Perfil Estilo Facebook</h2>
+                
+                <div class="bg-[#1f1635] border border-purple-500/30 p-4 rounded-2xl space-y-3 shadow-lg">
+                    <div class="flex items-center gap-3">
+                        <div class="relative">
+                            <img id="userAvatarPreview" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80" alt="Mi Foto" class="w-14 h-14 rounded-full object-cover border-2 border-pink-500">
+                            <label class="absolute bottom-0 right-0 bg-pink-600 text-white rounded-full p-1 text-[9px] cursor-pointer shadow">
+                                <i class="fa-solid fa-camera"></i>
+                                <input type="file" accept="image/*" class="hidden" onchange="updateProfilePhoto(event)">
+                            </label>
+                        </div>
+                        <div>
+                            <input type="text" id="userNameInput" value="Yair Romero" onchange="saveProfileInfo()" class="bg-[#120c22] text-xs font-bold text-white px-2.5 py-1 rounded-xl border border-purple-900 w-full mb-1">
+                            <input type="text" id="userStatusInput" value="🎉 Activo buscando el parche en MDE" onchange="saveProfileInfo()" class="bg-[#120c22] text-[10px] text-gray-300 px-2.5 py-1 rounded-xl border border-purple-900 w-full">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-[#1f1635] border border-pink-500/30 p-3.5 rounded-2xl space-y-2.5 shadow">
+                    <h3 class="text-xs font-bold text-pink-400 flex items-center justify-between">
+                        <span><i class="fa-solid fa-user-group mr-1"></i> Solicitudes de Amistad / Parche</span>
+                        <span class="bg-pink-600 text-white px-2 py-0.5 rounded-full text-[10px]" id="solicitudesCount">2</span>
+                    </h3>
+                    <div id="solicitudesList" class="space-y-2">
+                        <div class="bg-[#120c22] p-2.5 rounded-xl flex items-center justify-between text-xs border border-purple-900/50">
+                            <span class="text-[11px] cursor-pointer hover:text-pink-400" onclick="openUserProfile('Andrés P.', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80', 'A 800m en Laureles', ['Café Especial Laureles'], ['https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=500&auto=format&fit=crop&q=60'])"><strong>Andrés P.</strong> <span class="text-[9px] text-purple-300">(Ver Perfil)</span></span>
+                            <div class="flex gap-1.5">
+                                <button onclick="acceptSolicitud(this, true)" class="bg-green-600 px-2.5 py-1 rounded-lg text-white font-bold text-[10px]">Aceptar</button>
+                                <button onclick="acceptSolicitud(this, false)" class="bg-red-600/60 px-2 py-1 rounded-lg text-white text-[10px]">X</button>
+                            </div>
+                        </div>
+                        <div class="bg-[#120c22] p-2.5 rounded-xl flex items-center justify-between text-xs border border-purple-900/50">
+                            <span class="text-[11px] cursor-pointer hover:text-pink-400" onclick="openUserProfile('Valeria G.', 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80', 'A 1.5km en El Poblado', ['Rumba Crossover en Provenza'], ['https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=60'])"><strong>Valeria G.</strong> <span class="text-[9px] text-purple-300">(Ver Perfil)</span></span>
+                            <div class="flex gap-1.5">
+                                <button onclick="acceptSolicitud(this, true)" class="bg-green-600 px-2.5 py-1 rounded-lg text-white font-bold text-[10px]">Aceptar</button>
+                                <button onclick="acceptSolicitud(this, false)" class="bg-red-600/60 px-2 py-1 rounded-lg text-white text-[10px]">X</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="text-xs font-bold text-purple-300 pt-1">Mis Parches Creados 🔥</h3>
+                <div class="space-y-2.5" id="myCreatedParchesContainer">
+                    <div class="bg-[#1f1635] border border-purple-900/50 p-3 rounded-2xl shadow text-xs text-gray-400">
+                        Aún no has creado parches propios. ¡Crea uno rápido abajo!
+                    </div>
+                </div>
+
+                <h3 class="text-xs font-bold text-purple-300 pt-1">Eventos y Contenido Compartido (x2)</h3>
+                <div class="space-y-2" id="sharedProfileFeed">
+                    <div class="bg-[#1f1635] p-3 rounded-xl text-center text-[11px] text-gray-400 border border-purple-900/30">
+                        No has compartido parches en tu perfil todavía. Usa el botón 🔄 x2.
+                    </div>
+                </div>
+
+                <h3 class="text-xs font-bold text-purple-300 pt-1">Mis Fotos y Videos Subidos</h3>
+                <div class="grid grid-cols-2 gap-2" id="userMediaGallery">
+                    <div class="bg-[#1f1635] p-3 rounded-xl text-center text-[11px] text-gray-400 border border-purple-900/30 col-span-2">
+                        Aún no has subido contenido multimedia.
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Modales -->
+        <div id="createParcheModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-[#18122b] w-full max-w-sm rounded-3xl border border-purple-500/40 p-5 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center border-b border-purple-900/50 pb-3">
+                    <h3 class="font-black text-sm text-pink-400 flex items-center gap-2"><i class="fa-solid fa-fire"></i> Crear Nuevo Parche MDE</h3>
+                    <button onclick="closeCreateModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-base"></i></button>
+                </div>
+                
+                <div class="space-y-3 text-xs">
+                    <div>
+                        <label class="block text-[11px] text-purple-300 font-bold mb-1">Etiqueta / Tipo:</label>
+                        <input type="text" id="newParcheTag" placeholder="Ej. PROMO SPOT 🍹, RUMBA..." class="w-full bg-[#120c22] border border-purple-900 rounded-xl px-3 py-2.5 focus:outline-none focus:border-pink-500 text-white placeholder-gray-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] text-purple-300 font-bold mb-1">Nombre del Parche / Local:</label>
+                        <input type="text" id="newParcheName" placeholder="Ej. Bar Discoteca Central" class="w-full bg-[#120c22] border border-purple-900 rounded-xl px-3 py-2.5 focus:outline-none focus:border-pink-500 text-white placeholder-gray-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] text-purple-300 font-bold mb-1">Barrio o Zona:</label>
+                        <input type="text" id="newParcheZone" placeholder="Ej. Provenza, El Poblado" class="w-full bg-[#120c22] border border-purple-900 rounded-xl px-3 py-2.5 focus:outline-none focus:border-pink-500 text-white placeholder-gray-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] text-purple-300 font-bold mb-1">Dirección Exacta:</label>
+                        <input type="text" id="newParcheAddress" placeholder="Ej. Carrera 35 # 8-40" class="w-full bg-[#120c22] border border-purple-900 rounded-xl px-3 py-2.5 focus:outline-none focus:border-pink-500 text-white placeholder-gray-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] text-purple-300 font-bold mb-1">Foto o Video del Lugar:</label>
+                        <label class="flex items-center justify-center gap-2 w-full bg-[#120c22] border border-dashed border-purple-500/50 rounded-xl py-3 cursor-pointer hover:bg-purple-950/30 transition text-purple-300 font-bold text-[11px]">
+                            <i class="fa-solid fa-cloud-arrow-up text-pink-500 text-base"></i>
+                            <span id="uploadedFileName">Seleccionar archivo multimedia</span>
+                            <input type="file" id="newParcheMedia" accept="image/*,video/*" class="hidden" onchange="previewParcheMedia(event)">
+                        </label>
+                    </div>
+                </div>
+
+                <div class="flex gap-2 pt-2">
+                    <button onclick="closeCreateModal()" class="flex-1 bg-[#2d234a] text-gray-300 py-2.5 rounded-xl font-bold transition hover:bg-purple-950">Cancelar</button>
+                    <button onclick="submitNewParche()" class="flex-1 bg-gradient-to-r from-pink-600 to-purple-600 text-white py-2.5 rounded-xl font-bold transition shadow-lg">Publicar Parche</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="opinoModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div class="bg-[#18122b] w-full max-w-md rounded-t-3xl sm:rounded-2xl border-t sm:border border-purple-500/30 flex flex-col shadow-2xl overflow-hidden max-h-[80vh]">
+                <div class="p-3.5 border-b border-[#2d234a] flex justify-between items-center bg-[#1f1635]">
+                    <h3 id="opinoTitle" class="font-bold text-xs text-purple-300 truncate pr-2">Sección Opino</h3>
+                    <button onclick="closeOpinoModal()" class="text-gray-400 hover:text-white p-1"><i class="fa-solid fa-xmark text-base"></i></button>
+                </div>
+                <div id="opinoMessages" class="p-3.5 overflow-y-auto space-y-2.5 text-xs flex-1">
+                    <div class="bg-[#2d234a] p-2.5 rounded-xl">
+                        <span class="font-bold text-pink-400 block mb-0.5 text-[10px]">Carlos</span>
+                        ¡Este sitio es una chimba, la vista está brutal!
+                    </div>
+                </div>
+                <div class="p-3 border-t border-[#2d234a] bg-[#1f1635] flex gap-2">
+                    <input type="text" id="opinoInput" placeholder="Escribe tu opinión..." class="flex-1 bg-[#120c22] border border-purple-900 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-purple-500 text-white placeholder-gray-500">
+                    <button onclick="sendOpino()" class="bg-pink-600 px-3.5 py-2 rounded-xl text-xs font-bold hover:bg-pink-700 transition shadow">Opinar</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="userProfileModal" class="fixed inset-0 bg-black/85 z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-[#18122b] w-full max-w-sm rounded-3xl border border-purple-500/40 p-5 shadow-2xl space-y-3.5 overflow-y-auto max-h-[85vh]">
+                <div class="flex justify-between items-center border-b border-purple-900/50 pb-3">
+                    <h3 class="font-black text-xs text-pink-400 uppercase tracking-wider">Perfil del Parche</h3>
+                    <button onclick="closeUserProfile()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-base"></i></button>
+                </div>
+
+                <div class="flex flex-col items-center text-center space-y-2">
+                    <img id="modalProfileAvatar" src="" class="w-20 h-20 rounded-full object-cover border-2 border-pink-500 shadow-md">
+                    <div>
+                        <h4 id="modalProfileName" class="font-bold text-sm text-white"></h4>
+                        <p id="modalProfileDistance" class="text-[11px] text-pink-300 font-medium"></p>
+                    </div>
+                </div>
+
+                <div class="space-y-2 pt-2">
+                    <h5 class="text-[11px] font-bold text-purple-300 border-b border-purple-900/40 pb-1">📍 Eventos a los que asiste:</h5>
+                    <div id="modalProfileEvents" class="space-y-1 text-xs text-gray-300"></div>
+                </div>
+
+                <div class="space-y-2 pt-1">
+                    <h5 class="text-[11px] font-bold text-purple-300 border-b border-purple-900/40 pb-1">📸 Fotos y Videos Compartidos:</h5>
+                    <div id="modalProfileMedia" class="grid grid-cols-2 gap-2"></div>
+                </div>
+
+                <button onclick="closeUserProfile()" class="w-full bg-purple-900/60 hover:bg-purple-900 text-white py-2 rounded-xl text-xs font-bold transition shadow mt-2">Cerrar Perfil</button>
+            </div>
+        </div>
+
+        <div id="fullRadarModal" class="fixed inset-0 bg-black/85 z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-[#18122b] w-full max-w-sm rounded-3xl border border-purple-500/40 p-5 shadow-2xl space-y-3.5 overflow-y-auto max-h-[85vh]">
+                <div class="flex justify-between items-center border-b border-purple-900/50 pb-3">
+                    <h3 class="font-black text-xs text-pink-400 uppercase tracking-wider">📡 Todas las Personas Cercanas</h3>
+                    <button onclick="closeFullRadarModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-base"></i></button>
+                </div>
+                <div id="fullRadarListContainer" class="space-y-2.5">
+                    <div class="bg-[#1f1635] p-3 rounded-xl border border-purple-900/40 flex items-center justify-between text-xs cursor-pointer hover:border-pink-500" onclick="closeFullRadarModal(); openUserProfile('Carlos M.', 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80', 'A 400m en El Poblado', ['Rumba Crossover en Provenza'], ['https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=60'])">
+                        <div class="flex items-center gap-2">
+                            <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80" class="w-9 h-9 rounded-full object-cover border border-green-500">
+                            <div>
+                                <strong class="text-white">Carlos M.</strong>
+                                <p class="text-[10px] text-gray-400">A 400m en El Poblado</p>
+                            </div>
+                        </div>
+                        <span class="text-pink-400 text-[10px] font-bold">Ver Perfil →</span>
+                    </div>
+                </div>
+                <button onclick="closeFullRadarModal()" class="w-full bg-purple-900/60 hover:bg-purple-900 text-white py-2 rounded-xl text-xs font-bold transition shadow mt-2">Cerrar</button>
+            </div>
+        </div>
+
+        <div id="mediaDetailModal" class="fixed inset-0 bg-black/90 z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-[#18122b] w-full max-w-sm rounded-3xl border border-purple-500/40 p-4 shadow-2xl space-y-3">
+                <div class="flex justify-between items-center border-b border-purple-900/50 pb-2">
+                    <h3 id="mediaModalTitle" class="font-bold text-xs text-pink-400 truncate pr-2">Foto Compartida</h3>
+                    <button onclick="closeMediaDetailModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-base"></i></button>
+                </div>
+                <div class="rounded-2xl overflow-hidden bg-black max-h-72 flex items-center justify-center border border-purple-900/50">
+                    <img id="mediaModalImg" src="" class="w-full h-full object-contain">
+                </div>
+                <p id="mediaModalUser" class="text-[11px] text-gray-300 text-center font-medium"></p>
+                <button onclick="closeMediaDetailModal()" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-xl text-xs font-bold transition">Cerrar Visor</button>
+            </div>
+        </div>
+
+        <div id="chatDetailModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div class="bg-[#18122b] w-full max-w-md rounded-t-3xl sm:rounded-2xl border-t sm:border border-purple-500/30 flex flex-col shadow-2xl overflow-hidden h-[80vh]">
+                <div class="p-3.5 border-b border-[#2d234a] flex justify-between items-center bg-[#1f1635]">
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                        <h3 id="chatDetailTitle" class="font-bold text-xs text-white">Chat Privado</h3>
+                    </div>
+                    <button onclick="closeChatDetail()" class="text-gray-400 hover:text-white p-1"><i class="fa-solid fa-xmark text-base"></i></button>
+                </div>
+                <div id="chatDetailMessages" class="p-3.5 overflow-y-auto space-y-3 text-xs flex-1 bg-[#0f0c1b]">
+                    <div class="bg-[#1f1635] p-2.5 rounded-2xl rounded-tl-none max-w-[80%] border border-purple-900/40">
+                        <p class="text-gray-200">¡Hola! Vi tu perfil en el radar, ¿te anotas al parche de hoy?</p>
+                        <span class="text-[9px] text-gray-400 mt-1 block">Hace 5 min</span>
+                    </div>
+                </div>
+                <div class="p-3 border-t border-[#2d234a] bg-[#1f1635] flex gap-2">
+                    <input type="text" id="chatDetailInput" placeholder="Escribe un mensaje privado..." class="flex-1 bg-[#120c22] border border-purple-900 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-pink-500 text-white placeholder-gray-500">
+                    <button onclick="sendPrivateMessage()" class="bg-gradient-to-r from-pink-600 to-purple-600 px-3.5 py-2 rounded-xl text-xs font-bold hover:opacity-90 transition shadow"><i class="fa-solid fa-paper-plane"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation Bar -->
+        <nav class="absolute bottom-0 left-0 right-0 bg-[#120c22]/95 backdrop-blur-md border-t border-[#2d234a] flex justify-around py-2.5 z-40">
+            <button onclick="switchTab('tab-descubrir')" id="nav-descubrir" class="flex flex-col items-center text-pink-500 text-[10px] font-bold transition">
+                <i class="fa-solid fa-fire text-base mb-0.5"></i><span>Top Fuego</span>
+            </button>
+            <button onclick="switchTab('tab-mapa')" id="nav-mapa" class="flex flex-col items-center text-gray-400 text-[10px] font-medium transition">
+                <i class="fa-solid fa-radar text-base mb-0.5"></i><span>Radar</span>
+            </button>
+            <button onclick="switchTab('tab-chats')" id="nav-chats" class="flex flex-col items-center text-gray-400 text-[10px] font-medium transition relative">
+                <i class="fa-solid fa-comments text-base mb-0.5"></i><span>Chats</span>
+                <span class="absolute top-0 right-3 w-2 h-2 bg-pink-500 rounded-full animate-ping"></span>
+            </button>
+            <button onclick="switchTab('tab-miparche')" id="nav-miparche" class="flex flex-col items-center text-gray-400 text-[10px] font-medium transition">
+                <i class="fa-solid fa-user-group text-base mb-0.5"></i><span>Mi Parche</span>
+            </button>
+        </nav>
+
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Inicializar Supabase para Parchate Medellín
+        const supabaseUrl = 'https://ofqdziboaexkjhwtmgsx.supabase.co';
+        const supabaseKey = 'sb_publishable_pfLexM1rG5qM1J4f6n3m2l1k9j8h7g6f5e4d3c2b1a0'; 
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        // Cargar parches desde Supabase al abrir la app
+        async function loadParchesFromSupabase() {
+            const { data, error } = await supabase
+                .from('parches')
+                .select('*');
+
+            if (error) {
+                console.error('Error al cargar parches:', error.message);
+                return;
+            }
+
+            if (data && data.length > 0) {
+                const container = document.getElementById('dynamicParchesContainer');
+                if (!container) return;
+                
+                data.forEach(parche => {
+                    counterIdSeq++;
+                    const newId = counterIdSeq;
+                    const fullLoc = parche.descripcion || 'Medellín';
+                    const tagText = parche.categoria || 'PROMO SPOT 🍹';
+                    
+                    const cardHtml = `
+                        <div class="bg-[#1f1635] border border-[#3b2d63] rounded-2xl p-4 relative overflow-hidden shadow-xl animate-fade-in" data-category="locales cerca rumba" id="card-${newId}">
+                            <div class="flex justify-between items-center mb-1.5">
+                                <span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-0.5 rounded-lg text-[10px] font-bold tracking-wide uppercase inline-flex items-center gap-1" id="tag-${newId}">
+                                    ${tagText}
+                                </span>
+                                <div class="bg-[#2d234a] border border-purple-900/60 px-2.5 py-1 rounded-xl text-xs font-bold text-orange-400 flex items-center gap-1 shadow-inner">
+                                    🔥 <span id="count-${newId}">1</span>
+                                </div>
+                            </div>
+
+                            <h3 class="font-bold text-base text-white leading-snug">${parche.titulo}</h3>
+                            
+                            <p class="text-[11px] text-gray-400 mt-0.5 mb-3 flex items-center">
+                                <i class="fa-solid fa-location-dot text-pink-500 mr-1.5"></i> ${fullLoc}
+                            </p>
+                            
+                            <div class="relative rounded-2xl overflow-hidden bg-black/40 h-44 mb-3 border border-purple-900/30 group">
+                                <img src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=60" alt="${parche.titulo}" class="w-full h-full object-cover">
+                                <button onclick="openExternalNav('${fullLoc}')" class="absolute top-2.5 right-2.5 bg-emerald-600/90 hover:bg-emerald-500 active:scale-95 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl shadow-lg backdrop-blur-sm flex items-center gap-1.5 transition">
+                                    <i class="fa-solid fa-map-location-dot"></i> Ubicar
+                                </button>
+                            </div>
+
+                            <div class="grid grid-cols-3 gap-2">
+                                <button onclick="toggleAxFuego(${newId})" id="btn-fuego-${newId}" class="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 active:scale-95 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 shadow transition">
+                                    🔥 A fuego
+                                </button>
+                                <button onclick="openOpinoModal('${parche.titulo}')" class="bg-[#2d234a] hover:bg-purple-900/50 border border-purple-500/20 active:scale-95 text-purple-200 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 transition">
+                                    💬 Opino
+                                </button>
+                                <button onclick="shareToProfile('${parche.titulo}', 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=60')" class="bg-[#3b1c3a] hover:bg-[#4a2349] border border-pink-500/30 active:scale-95 text-pink-300 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 transition">
+                                    🔄 x2
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    container.insertAdjacentHTML('afterbegin', cardHtml);
+                });
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadParchesFromSupabase();
+        });
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.app-view').forEach(view => {
+                view.classList.remove('active');
+            });
+            const target = document.getElementById(tabId);
+            if(target) target.classList.add('active');
+
+            ['nav-descubrir', 'nav-mapa', 'nav-chats', 'nav-miparche'].forEach(btnId => {
+                const b = document.getElementById(btnId);
+                if(b) {
+                    b.classList.remove('text-pink-500', 'font-bold');
+                    b.classList.add('text-gray-400', 'font-medium');
+                }
+            });
+            
+            const btnMap = {
+                'tab-descubrir': 'nav-descubrir',
+                'tab-mapa': 'nav-mapa',
+                'tab-chats': 'nav-chats',
+                'tab-miparche': 'nav-miparche'
+            };
+            const activeBtn = document.getElementById(btnMap[tabId]);
+            if(activeBtn) {
+                activeBtn.classList.remove('text-gray-400', 'font-medium');
+                activeBtn.classList.add('text-pink-500', 'font-bold');
+            }
+        }
+
+        function switchFeedView(viewType) {
+            const listaView = document.getElementById('feed-lista-view');
+            const mapaView = document.getElementById('feed-mapa-view');
+            const btnLista = document.getElementById('btn-view-lista');
+            const btnMapa = document.getElementById('btn-view-mapa');
+
+            if(viewType === 'lista') {
+                listaView.classList.remove('hidden');
+                mapaView.classList.add('hidden');
+                btnLista.className = "flex-1 py-2 rounded-lg font-bold bg-pink-600 text-white transition shadow";
+                btnMapa.className = "flex-1 py-2 rounded-lg font-medium text-gray-400 transition";
+            } else {
+                listaView.classList.add('hidden');
+                mapaView.classList.remove('hidden');
+                btnMapa.className = "flex-1 py-2 rounded-lg font-bold bg-pink-600 text-white transition shadow";
+                btnLista.className = "flex-1 py-2 rounded-lg font-medium text-gray-400 transition";
+                setTimeout(() => { if(window.mapInstance) window.mapInstance.invalidateSize(); }, 250);
+            }
+        }
+
+        let map = L.map('map').setView([6.2442, -75.5812], 13);
+        window.mapInstance = map; 
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        L.marker([6.334, -75.562]).addTo(map).bindPopup('<b>Bello - Parche Activo</b>');
+        L.marker([6.244, -75.581]).addTo(map).bindPopup('<b>Medellín Centro - Top Fuego</b>');
+        L.marker([6.168, -75.585]).addTo(map).bindPopup('<b>Envigado - Tardeo</b>');
+
+        map.on('click', function(e) {
+            const lat = e.latlng.lat.toFixed(4);
+            const lng = e.latlng.lng.toFixed(4);
+            document.getElementById('newParcheTag').value = 'PROMO SPOT 🍹';
+            document.getElementById('newParcheName').value = '';
+            document.getElementById('newParcheZone').value = 'Medellín';
+            document.getElementById('newParcheAddress').value = `GPS (${lat}, ${lng})`;
+            tempSelectedMediaUrl = "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=500&auto=format&fit=crop&q=60";
+            document.getElementById('uploadedFileName').innerText = "Ubicación de mapa seleccionada";
+            document.getElementById('createParcheModal').classList.remove('hidden');
+        });
+
+        function openExternalNav(locationName) {
+            const encoded = encodeURIComponent(locationName + ", Medellín, Colombia");
+            const url = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+            window.open(url, '_blank');
+        }
+
+        function filterFeed(type) {
+            ['todo', 'cerca', 'locales', 'cafes', 'rumba'].forEach(t => {
+                const btn = document.getElementById(`filter-${t}`);
+                if(btn) {
+                    if(t === type) {
+                        btn.className = "bg-pink-600 text-white px-3 py-1.5 rounded-xl font-bold whitespace-nowrap shadow";
+                    } else {
+                        btn.className = "bg-[#1f1635] text-purple-300 border border-purple-900/50 px-3 py-1.5 rounded-xl font-medium whitespace-nowrap";
+                    }
+                }
+            });
+
+            const cards = document.querySelectorAll('#dynamicParchesContainer > div');
+            cards.forEach(card => {
+                const cat = card.getAttribute('data-category') || '';
+                if(type === 'todo' || cat.includes(type)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        let counterIdSeq = 3;
+        let tempSelectedMediaUrl = "https://images.unsplash.com/photo-1543007630-9710e4a00a20?w=500&auto=format&fit=crop&q=60";
+
+        function toggleAxFuego(id) {
+            const btn = document.getElementById(`btn-fuego-${id}`);
+            const countSpan = document.getElementById(`count-${id}`);
+            if(!btn || !countSpan) return;
+            let count = parseInt(countSpan.innerText);
+
+            if(!btn.classList.contains('active-fuego')) {
+                btn.classList.add('active-fuego');
+                btn.classList.remove('from-orange-500', 'to-amber-600');
+                btn.classList.add('from-red-600', 'to-pink-600');
+                btn.innerHTML = '🔥 ¡A Fuego!';
+                countSpan.innerText = count + 1;
+            } else {
+                btn.classList.remove('active-fuego');
+                btn.classList.remove('from-red-600', 'to-pink-600');
+                btn.classList.add('from-orange-500', 'to-amber-600');
+                btn.innerHTML = '🔥 A fuego';
+                countSpan.innerText = count - 1;
+            }
+        }
+
+        function previewParcheMedia(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+            tempSelectedMediaUrl = URL.createObjectURL(file);
+            document.getElementById('uploadedFileName').innerText = file.name;
+        }
+
+        function openCreateModal() {
+            document.getElementById('newParcheTag').value = 'PROMO SPOT 🍹';
+            document.getElementById('newParcheName').value = '';
+            document.getElementById('newParcheZone').value = '';
+            document.getElementById('newParcheAddress').value = '';
+            document.getElementById('uploadedFileName').innerText = 'Seleccionar archivo multimedia';
+            tempSelectedMediaUrl = "https://images.unsplash.com/photo-1543007630-9710e4a00a20?w=500&auto=format&fit=crop&q=60";
+            document.getElementById('createParcheModal').classList.remove('hidden');
+        }
+
+        function closeCreateModal() {
+            document.getElementById('createParcheModal').classList.add('hidden');
+        }
+
+        async function submitNewParche() {
+            const tag = document.getElementById('newParcheTag').value.trim() || 'PARCHE 🔥';
+            const name = document.getElementById('newParcheName').value.trim();
+            const zone = document.getElementById('newParcheZone').value.trim();
+            const address = document.getElementById('newParcheAddress').value.trim();
+
+            if(!name || !zone || !address) {
+                alert("Por favor completa el nombre, zona y dirección exacta.");
+                return;
+            }
+
+            const { error } = await supabase
+                .from('parches')
+                .insert([
+                    { 
+                        titulo: name, 
+                        descripcion: `${zone} - ${address}`, 
+                        categoria: tag,
+                        latitud: 6.2442, 
+                        longitud: -75.5812 
+                    }
+                ]);
+
+            if (error) {
+                console.error('Error al guardar en Supabase:', error.message);
+            }
+
+            counterIdSeq++;
+            const newId = counterIdSeq;
+            const container = document.getElementById('dynamicParchesContainer');
+            const myContainer = document.getElementById('myCreatedParchesContainer');
+
+            if(myContainer && myContainer.innerHTML.includes('Aún no has creado')) {
+                myContainer.innerHTML = '';
+            }
+
+            const fullLocationText = `${zone}, ${address}`;
+
+            const cardHtml = `
+                <div class="bg-[#1f1635] border border-[#3b2d63] rounded-2xl p-4 relative overflow-hidden shadow-xl animate-fade-in" data-category="locales cerca rumba" id="card-${newId}">
+                    <div class="flex justify-between items-center mb-1.5">
+                        <span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-0.5 rounded-lg text-[10px] font-bold tracking-wide uppercase inline-flex items-center gap-1" id="tag-${newId}">
+                            ${tag}
+                        </span>
+                        <div class="bg-[#2d234a] border border-purple-900/60 px-2.5 py-1 rounded-xl text-xs font-bold text-orange-400 flex items-center gap-1 shadow-inner">
+                            🔥 <span id="count-${newId}">1</span>
+                        </div>
+                    </div>
+
+                    <h3 class="font-bold text-base text-white leading-snug">${name}</h3>
+                    
+                    <p class="text-[11px] text-gray-400 mt-0.5 mb-3 flex items-center">
+                        <i class="fa-solid fa-location-dot text-pink-500 mr-1.5"></i> ${zone} (${address})
+                    </p>
+                    
+                    <div class="relative rounded-2xl overflow-hidden bg-black/40 h-44 mb-3 border border-purple-900/30 group">
+                        <img src="${tempSelectedMediaUrl}" alt="${name}" class="w-full h-full object-cover">
+                        <button onclick="openExternalNav('${fullLocationText}')" class="absolute top-2.5 right-2.5 bg-emerald-600/90 hover:bg-emerald-500 active:scale-95 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl shadow-lg backdrop-blur-sm flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-map-location-dot"></i> Ubicar
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="toggleAxFuego(${newId})" id="btn-fuego-${newId}" class="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 active:scale-95 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 shadow transition">
+                            🔥 A fuego
+                        </button>
+                        <button onclick="openOpinoModal('${name}')" class="bg-[#2d234a] hover:bg-purple-900/50 border border-purple-500/20 active:scale-95 text-purple-200 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 transition">
+                            💬 Opino
+                        </button>
+                        <button onclick="shareToProfile('${name}', '${tempSelectedMediaUrl}')" class="bg-[#3b1c3a] hover:bg-[#4a2349] border border-pink-500/30 active:scale-95 text-pink-300 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 transition">
+                            🔄 x2
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            if(container) container.insertAdjacentHTML('afterbegin', cardHtml);
+            
+            if(myContainer) {
+                const myItemHtml = `
+                    <div class="bg-[#120c22] border border-purple-900/50 p-2.5 rounded-xl text-xs flex justify-between items-center" id="my-parche-${newId}">
+                        <div>
+                            <span class="font-bold text-white block">🔥 ${name}</span>
+                            <span class="text-[10px] text-gray-400">${zone} (${tag})</span>
+                        </div>
+                        <button onclick="deleteMyParche(${newId})" class="bg-red-600/80 hover:bg-red-600 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold transition">Eliminar</button>
+                    </div>
+                `;
+                myContainer.insertAdjacentHTML('afterbegin', myItemHtml);
+            }
+            
+            closeCreateModal();
+            alert(`¡Parche "${name}" creado y publicado en Top Fuego con éxito!`);
+        }
+
+        function deleteMyParche(id) {
+            if(!confirm("¿Estás seguro de eliminar este parche definitivamente?")) return;
+            const myItem = document.getElementById(`my-parche-${id}`);
+            const mainCard = document.getElementById(`card-${id}`);
+            if(myItem) myItem.remove();
+            if(mainCard) mainCard.remove();
+            alert("Parche eliminado correctamente.");
+        }
+
+        function handleMediaUpload(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+
+            const gallery = document.getElementById('userMediaGallery');
+            if(!gallery) return;
+            if(gallery.innerHTML.includes('Aún no has subido')) {
+                gallery.innerHTML = '';
+            }
+
+            const url = URL.createObjectURL(file);
+            const mediaItem = document.createElement('div');
+            mediaItem.className = 'bg-[#1f1635] p-2 rounded-xl border border-purple-900/40 relative shadow cursor-pointer';
+            mediaItem.onclick = () => openMediaDetailModal('Mi archivo subido', url, 'Tú');
+            
+            if(file.type.startsWith('video/')) {
+                mediaItem.innerHTML = `<video src="${url}" class="w-full h-28 object-cover rounded-lg mb-1"></video><span class="text-[9px] text-pink-400 block text-center font-bold">Video publicado</span>`;
+            } else {
+                mediaItem.innerHTML = `<img src="${url}" class="w-full h-28 object-cover rounded-lg mb-1"><span class="text-[9px] text-pink-400 block text-center font-bold">Foto publicada</span>`;
+            }
+
+            gallery.appendChild(mediaItem);
+            alert("¡Foto o video subido con éxito a tu galería!");
+        }
+
+        function shareToProfile(eventName, imageUrl) {
+            const sharedFeed = document.getElementById('sharedProfileFeed');
+            if(!sharedFeed) return;
+            if(sharedFeed.innerHTML.includes('No has compartido')) {
+                sharedFeed.innerHTML = '';
+            }
+
+            const shareItem = document.createElement('div');
+            shareItem.className = 'bg-[#120c22] border border-pink-500/30 p-2.5 rounded-xl flex items-center justify-between text-xs shadow';
+            shareItem.innerHTML = `
+                <div class="flex items-center gap-2.5">
+                    <img src="${imageUrl}" class="w-10 h-10 rounded-lg object-cover border border-pink-500">
+                    <div>
+                        <span class="font-bold text-white block">🔄 Compartiste: ${eventName}</span>
+                        <span class="text-[9px] text-pink-300">Visible en tu perfil</span>
+                    </div>
+                </div>
+                <span class="text-[10px] text-gray-400">Ahora</span>
+            `;
+            sharedFeed.insertAdjacentElement('afterbegin', shareItem);
+            alert("¡Contenido compartido x2 en tu perfil con éxito!");
+        }
+
+        function openOpinoModal(title) {
+            const titleEl = document.getElementById('opinoTitle');
+            if(titleEl) titleEl.innerText = `Opino sobre: ${title}`;
+            const modal = document.getElementById('opinoModal');
+            if(modal) modal.classList.remove('hidden');
+        }
+
+        function closeOpinoModal() {
+            const modal = document.getElementById('opinoModal');
+            if(modal) modal.classList.add('hidden');
+        }
+
+        function sendOpino() {
+            const input = document.getElementById('opinoInput');
+            const container = document.getElementById('opinoMessages');
+            if(!input || !container) return;
+            const text = input.value.trim();
+            if(!text) return;
+
+            const msgHtml = `
+                <div class="bg-[#2d234a] p-2.5 rounded-xl">
+                    <span class="font-bold text-pink-400 block mb-0.5 text-[10px]">Tú</span>
+                    ${text}
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', msgHtml);
+            input.value = '';
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function openUserProfile(name, avatar, distance, events, mediaList) {
+            document.getElementById('modalProfileName').innerText = name;
+            document.getElementById('modalProfileAvatar').src = avatar;
+            document.getElementById('modalProfileDistance').innerText = distance;
+
+            const evContainer = document.getElementById('modalProfileEvents');
+            if(evContainer) {
+                evContainer.innerHTML = '';
+                events.forEach(ev => {
+                    evContainer.innerHTML += `<div class="bg-[#120c22] p-2 rounded-lg border border-purple-900/40">🔥 ${ev}</div>`;
+                });
+            }
+
+            const mdContainer = document.getElementById('modalProfileMedia');
+            if(mdContainer) {
+                mdContainer.innerHTML = '';
+                mediaList.forEach(m => {
+                    mdContainer.innerHTML += `<div class="rounded-xl overflow-hidden h-24 bg-black border border-purple-900/40 cursor-pointer" onclick="openMediaDetailModal('Contenido de ${name}', '${m}', '${name}')"><img src="${m}" class="w-full h-full object-cover"></div>`;
+                });
+            }
+
+            const modal = document.getElementById('userProfileModal');
+            if(modal) modal.classList.remove('hidden');
+        }
+
+        function closeUserProfile() {
+            const modal = document.getElementById('userProfileModal');
+            if(modal) modal.classList.add('hidden');
+        }
+
+        function openFullRadarModal() {
+            const modal = document.getElementById('fullRadarModal');
+            if(modal) modal.classList.remove('hidden');
+        }
+
+        function closeFullRadarModal() {
+            const modal = document.getElementById('fullRadarModal');
+            if(modal) modal.classList.add('hidden');
+        }
+
+        function openMediaDetailModal(title, imgUrl, user) {
+            document.getElementById('mediaModalTitle').innerText = title;
+            document.getElementById('mediaModalImg').src = imgUrl;
+            document.getElementById('mediaModalUser').innerText = `Publicado por: ${user}`;
+            const modal = document.getElementById('mediaDetailModal');
+            if(modal) modal.classList.remove('hidden');
+        }
+
+        function closeMediaDetailModal() {
+            const modal = document.getElementById('mediaDetailModal');
+            if(modal) modal.classList.add('hidden');
+        }
+
+        function openChatDetail(userName) {
+            document.getElementById('chatDetailTitle').innerText = `Chat Privado con ${userName}`;
+            const modal = document.getElementById('chatDetailModal');
+            if(modal) modal.classList.remove('hidden');
+        }
+
+        function closeChatDetail() {
+            const modal = document.getElementById('chatDetailModal');
+            if(modal) modal.classList.add('hidden');
+        }
+
+        function sendPrivateMessage() {
+            const input = document.getElementById('chatDetailInput');
+            const container = document.getElementById('chatDetailMessages');
+            if(!input || !container) return;
+            const text = input.value.trim();
+            if(!text) return;
+
+            const msgHtml = `
+                <div class="bg-purple-900/60 p-2.5 rounded-2xl rounded-tr-none max-w-[80%] ml-auto border border-purple-500/40 text-right">
+                    <p class="text-white">${text}</p>
+                    <span class="text-[9px] text-pink-300 mt-1 block">Justo ahora</span>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', msgHtml);
+            input.value = '';
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function acceptSolicitud(btn, accepted) {
+            const row = btn.closest('.bg-\\[\\#120c22\\]');
+            if(row) {
+                row.style.opacity = '0.5';
+                setTimeout(() => row.remove(), 300);
+            }
+            const countSpan = document.getElementById('solicitudesCount');
+            if(countSpan) {
+                let current = parseInt(countSpan.innerText) || 1;
+                countSpan.innerText = Math.max(0, current - 1);
+            }
+            alert(accepted ? "¡Solicitud aceptada con éxito! Ya hace parte de tus agregados." : "Solicitud rechazada.");
+        }
+
+        function updateProfilePhoto(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+            const url = URL.createObjectURL(file);
+            const preview = document.getElementById('userAvatarPreview');
+            if(preview) preview.src = url;
+            alert("¡Foto de perfil actualizada correctamente!");
+        }
+
+        function saveProfileInfo() {}
+
+        function askGemini() {
+            const input = document.getElementById('geminiInput');
+            const resp = document.getElementById('geminiResponse');
+            if(!input || !resp) return;
+            const text = input.value.trim();
+            if(!text) return;
+
+            resp.classList.remove('hidden');
+            resp.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Pensando recomendaciones en Medellín...`;
+
+            setTimeout(() => {
+                resp.innerHTML = `✨ <strong>Recomendación AI para "${text}":</strong><br>1. <strong>Rumba & 2x1 Cócteles en Provenza</strong> (A Fuego 🔥)<br>2. <strong>Café Especial Laureles</strong> para tardear con parchados.<br><em>¡Disfruta del ambiente en la ciudad!</em>`;
+            }, 800);
+        }
+    </script>
+</body>
+</html>
