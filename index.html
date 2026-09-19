@@ -7,7 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Parchate Medellín</title>
+    <title>Párchate</title>
     <!-- Leaflet CSS for Map -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <!-- FontAwesome Icons -->
@@ -48,15 +48,7 @@
 
         <!-- Header Mobile -->
         <header class="flex justify-between items-center px-4 py-3 bg-[#18122b]/90 backdrop-blur-md border-b border-[#2d234a] sticky top-0 z-50">
-            <h1 class="text-base font-black tracking-wider bg-gradient-to-r from-pink-500 via-purple-400 to-indigo-400 bg-clip-text text-transparent">PARCHATE MDE</h1>
-            
-            <!-- Mode Selector -->
-            <div class="relative flex items-center">
-                <select id="modeSelector" onchange="changeAppMode(this.value)" class="bg-[#2d234a] text-[11px] font-bold px-2.5 py-1.5 rounded-xl border border-purple-500/30 focus:outline-none text-white shadow-inner">
-                    <option value="tranki">🟢 Tranki</option>
-                    <option value="agrandao">🔥 Agrandao</option>
-                </select>
-            </div>
+            <h1 class="text-base font-black tracking-wider bg-gradient-to-r from-pink-500 via-purple-400 to-indigo-400 bg-clip-text text-transparent">PÁRCHATE</h1>
         </header>
 
         <!-- Main Content Area -->
@@ -425,6 +417,11 @@
                         Aún no has subido contenido multimedia.
                     </div>
                 </div>
+
+                <!-- Footer Trademark -->
+                <div class="text-center pt-4 pb-2">
+                    <p class="text-[10px] text-purple-400/80 font-medium tracking-wider">Hecho en Medellín blo blo blo blo</p>
+                </div>
             </section>
 
         </main>
@@ -599,7 +596,7 @@
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Inicializar Supabase para Parchate Medellín
+        // Inicializar Supabase para Párchate
         const supabaseUrl = 'https://ofqdziboaexkjhwtmgsx.supabase.co';
         const supabaseKey = 'sb_publishable_pfLexM1rG5qM1J4f6n3m2l1k9j8h7g6f5e4d3c2b1a0'; 
         const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
