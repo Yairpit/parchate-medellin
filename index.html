@@ -49,18 +49,34 @@
     <div class="w-full max-w-md mx-auto bg-[#0f0c1b] min-h-screen flex flex-col shadow-2xl relative border-x border-purple-950">
 
         <!-- Header App -->
-        <header class="flex flex-col items-center justify-center py-3 px-4 bg-[#18122b]/95 backdrop-blur-md border-b border-[#2d234a] sticky top-0 z-40 text-center">
-            <div class="flex justify-between items-center w-full">
-                <div class="w-8"></div>
-                <div class="text-center">
-                    <h1 class="text-2xl font-black tracking-widest bg-gradient-to-r from-pink-500 via-purple-400 to-indigo-400 bg-clip-text text-transparent">PÁRCHATE</h1>
-                    <p class="text-[10px] font-extrabold text-purple-300 tracking-wider">Medellín • <span class="text-pink-500">BLO BLO BLO</span></p>
-                </div>
-                <button onclick="checkAuthAndOpenProfile()" id="headerUserBadge" class="text-xs bg-purple-900/60 border border-purple-500/40 px-2 py-1 rounded-xl text-pink-300 font-bold flex items-center gap-1">
-                    <i class="fa-solid fa-user-circle"></i> <span id="headerStatusText">Invitado</span>
-                </button>
+        <header class="flex flex-col items-center justify-center py-3 px-4 bg-[#18122b]/95 backdrop-blur-md border-b border-[#2d234a] sticky top-0 z-40 text-center relative overflow-hidden">
+    
+    <!-- Efecto de nieve estática / decorativa superior -->
+    <div class="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]"></div>
+
+    <div class="flex justify-between items-center w-full relative z-10">
+        <div class="w-8"></div>
+        
+        <div class="text-center relative">
+            <!-- Gorro de Navidad ajustado sobre el título -->
+            <div class="absolute -top-5 left-1/2 -translate-x-1/2 text-2xl animate-bounce">
+                🎅🎄
             </div>
-        </header>
+
+            <h1 class="text-2xl font-black tracking-widest bg-gradient-to-r from-pink-500 via-purple-400 to-indigo-400 bg-clip-text text-transparent pt-1">
+                PÁRCHATE
+            </h1>
+            
+            <p class="text-[10px] font-extrabold text-purple-300 tracking-wider">
+                Hecha en Medellín • <span class="text-pink-500">❄️ BLO BLO BLO ❄️</span>
+            </p>
+        </div>
+
+        <button onclick="checkAuthAndOpenProfile()" id="headerUserBadge" class="text-xs bg-purple-900/60 border border-purple-500/40 px-2 py-1 rounded-xl text-pink-300 font-bold flex items-center gap-1 shadow-lg">
+            <i class="fa-solid fa-user-circle"></i> <span id="headerStatusText">Invitado</span>
+        </button>
+    </div>
+</header>
 
         <!-- Contenido Principal -->
         <main class="flex-1 pb-24 overflow-y-auto">
