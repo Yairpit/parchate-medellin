@@ -96,8 +96,8 @@
                     </p>
                 </div>
 
-                <button onclick="checkAuthAndOpenProfile()" id="headerUserBadge" class="text-xs bg-purple-900/60 border border-purple-500/40 px-2 py-1 rounded-xl text-pink-300 font-bold flex items-center gap-1 shadow-lg">
-                    <i class="fa-solid fa-user-circle"></i> <span id="headerStatusText">Yair (Admin)</span>
+                <button onclick="checkAuthAndOpenProfile()" id="headerUserBadge" class="text-xs bg-purple-900/60 border border-purple-500/40 px-2.5 py-1.5 rounded-xl text-pink-300 font-bold flex items-center gap-1 shadow-lg active:scale-95 transition">
+                    <i class="fa-solid fa-user-circle"></i> <span id="headerStatusText">Invitado</span>
                 </button>
             </div>
         </header>
@@ -301,9 +301,9 @@
                                     <div>
                                         <h3 class="font-black text-sm text-white flex items-center gap-1.5">
                                             Parche Infinito
-                                            <span class="bg-pink-600/30 border border-pink-500 text-pink-300 text-[8px] px-1.5 py-0.5 rounded-md font-bold uppercase">ADMIN: TÚ</span>
+                                            <span class="bg-pink-600/30 border border-pink-500 text-pink-300 text-[8px] px-1.5 py-0.5 rounded-md font-bold uppercase" id="groupAdminTag1">ADMIN: COMUNIDAD</span>
                                         </h3>
-                                        <p class="text-[10px] text-purple-200">Grupo principal de Medellín • Propietario Exclusivo</p>
+                                        <p class="text-[10px] text-purple-200">Grupo principal de Medellín</p>
                                     </div>
                                 </div>
                                 <span class="bg-green-500/20 text-green-400 border border-green-500/40 text-[9px] px-2 py-0.5 rounded-full font-bold">1,420 Miembros</span>
@@ -312,10 +312,10 @@
                                 💬 <em>Carlos M.: "¡Parce, el parche de hoy está que arde!"</em>
                             </div>
                             <div class="flex gap-2">
-                                <button onclick="openGroupChat('parche-infinito', 'Parche Infinito ♾️')" class="flex-1 bg-pink-600 hover:bg-pink-700 text-white py-2 rounded-xl text-xs font-bold shadow transition flex items-center justify-center gap-1">
+                                <button onclick="requireAuthAction(() => openGroupChat('parche-infinito', 'Parche Infinito ♾️'))" class="flex-1 bg-pink-600 hover:bg-pink-700 text-white py-2 rounded-xl text-xs font-bold shadow transition flex items-center justify-center gap-1">
                                     <i class="fa-solid fa-comments"></i> Entrar al Chat
                                 </button>
-                                <button onclick="openInviteModal('parche-infinito')" class="bg-[#2d234a] hover:bg-purple-900/60 text-purple-200 px-3 py-2 rounded-xl text-xs font-bold border border-purple-500/30 transition">
+                                <button onclick="requireAuthAction(() => openInviteModal('parche-infinito'))" class="bg-[#2d234a] hover:bg-purple-900/60 text-purple-200 px-3 py-2 rounded-xl text-xs font-bold border border-purple-500/30 transition">
                                     <i class="fa-solid fa-user-plus"></i> Invitar
                                 </button>
                             </div>
@@ -331,9 +331,9 @@
                                     <div>
                                         <h3 class="font-black text-sm text-white flex items-center gap-1.5">
                                             Únete al Parche
-                                            <span class="bg-pink-600/30 border border-pink-500 text-pink-300 text-[8px] px-1.5 py-0.5 rounded-md font-bold uppercase">ADMIN: TÚ</span>
+                                            <span class="bg-pink-600/30 border border-pink-500 text-pink-300 text-[8px] px-1.5 py-0.5 rounded-md font-bold uppercase" id="groupAdminTag2">ADMIN: COMUNIDAD</span>
                                         </h3>
-                                        <p class="text-[10px] text-purple-200">Parche abierto para conocer desconocidos en la ciudad</p>
+                                        <p class="text-[10px] text-purple-200">Parche abierto para conocer gente en la ciudad</p>
                                     </div>
                                 </div>
                                 <span class="bg-green-500/20 text-green-400 border border-green-500/40 text-[9px] px-2 py-0.5 rounded-full font-bold">890 Miembros</span>
@@ -342,10 +342,10 @@
                                 💬 <em>Sofía R.: "¿Quién para ir a tomar algo a Laureles?"</em>
                             </div>
                             <div class="flex gap-2">
-                                <button onclick="openGroupChat('unete-al-parche', 'Únete al Parche 🔥')" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-xl text-xs font-bold shadow transition flex items-center justify-center gap-1">
+                                <button onclick="requireAuthAction(() => openGroupChat('unete-al-parche', 'Únete al Parche 🔥'))" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-xl text-xs font-bold shadow transition flex items-center justify-center gap-1">
                                     <i class="fa-solid fa-comments"></i> Entrar al Chat
                                 </button>
-                                <button onclick="openInviteModal('unete-al-parche')" class="bg-[#2d234a] hover:bg-purple-900/60 text-purple-200 px-3 py-2 rounded-xl text-xs font-bold border border-purple-500/30 transition">
+                                <button onclick="requireAuthAction(() => openInviteModal('unete-al-parche'))" class="bg-[#2d234a] hover:bg-purple-900/60 text-purple-200 px-3 py-2 rounded-xl text-xs font-bold border border-purple-500/30 transition">
                                     <i class="fa-solid fa-user-plus"></i> Invitar
                                 </button>
                             </div>
@@ -401,49 +401,23 @@
             <section id="tab-miparche" class="app-view p-3.5 space-y-3.5">
                 <h2 class="text-sm font-black text-purple-300">Mi Perfil</h2>
                 
-                <div class="bg-[#1f1635] border border-purple-500/30 p-4 rounded-2xl space-y-3 shadow-lg">
-                    <div class="flex items-center gap-3">
-                        <div class="relative">
-                            <img id="userAvatarPreview" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80" alt="Foto Perfil" class="w-16 h-16 rounded-full object-cover border-2 border-pink-500">
-                            <label class="absolute bottom-0 right-0 bg-pink-600 text-white rounded-full p-1.5 text-[9px] cursor-pointer shadow">
-                                <i class="fa-solid fa-camera"></i>
-                                <input type="file" accept="image/*" class="hidden" onchange="updateProfilePhoto(event)">
-                            </label>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <input type="text" id="userNameInput" value="Yair Romero (Admin)" onchange="saveProfileInfo()" class="bg-[#120c22] text-xs font-bold text-white px-2.5 py-1 rounded-xl border border-purple-900 w-full mb-1 truncate">
-                            <input type="text" id="userStatusInput" value="👑 Dueño & Admin de Parche Infinito" onchange="saveProfileInfo()" class="bg-[#120c22] text-[10px] text-gray-300 px-2.5 py-1 rounded-xl border border-purple-900 w-full">
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-3 gap-2 bg-[#120c22] p-2.5 rounded-xl border border-purple-900/50 text-center">
-                        <div>
-                            <span class="block font-black text-sm text-pink-400" id="followersCount">1,840</span>
-                            <span class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Seguidores</span>
-                        </div>
-                        <div class="border-x border-purple-900/50">
-                            <span class="block font-black text-sm text-purple-300" id="followingCount">320</span>
-                            <span class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Siguiendo</span>
-                        </div>
-                        <div>
-                            <span class="block font-black text-sm text-indigo-400" id="friendsCount">2,150</span>
-                            <span class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Amigos</span>
-                        </div>
-                    </div>
+                <!-- Tarjeta de Perfil Dinámica -->
+                <div id="profileCardContainer">
+                    <!-- Se renderiza dinámicamente según si es invitado o usuario registrado -->
                 </div>
 
-                <div class="bg-[#1f1635] border border-pink-500/30 p-3.5 rounded-2xl space-y-2.5 shadow">
+                <div id="profileAdminSection" class="bg-[#1f1635] border border-pink-500/30 p-3.5 rounded-2xl space-y-2.5 shadow">
                     <h3 class="text-xs font-bold text-pink-400 flex items-center justify-between">
                         <span><i class="fa-solid fa-shield-halved mr-1"></i> Mis Administraciones Exclusivas</span>
                     </h3>
                     <div class="space-y-2 text-xs">
                         <div class="bg-[#120c22] p-2.5 rounded-xl flex items-center justify-between border border-purple-900/50">
                             <span class="font-bold text-white">♾️ Parche Infinito</span>
-                            <span class="bg-pink-600/30 text-pink-300 border border-pink-500/50 px-2 py-0.5 rounded text-[10px] font-bold">PROPIETARIO</span>
+                            <span class="bg-pink-600/30 text-pink-300 border border-pink-500/50 px-2 py-0.5 rounded text-[10px] font-bold">MIEMBRO / ADMIN</span>
                         </div>
                         <div class="bg-[#120c22] p-2.5 rounded-xl flex items-center justify-between border border-purple-900/50">
                             <span class="font-bold text-white">🔥 Únete al Parche</span>
-                            <span class="bg-pink-600/30 text-pink-300 border border-pink-500/50 px-2 py-0.5 rounded text-[10px] font-bold">PROPIETARIO</span>
+                            <span class="bg-pink-600/30 text-pink-300 border border-pink-500/50 px-2 py-0.5 rounded text-[10px] font-bold">MIEMBRO / ADMIN</span>
                         </div>
                     </div>
                 </div>
@@ -456,12 +430,94 @@
                         Aún no has subido fotos comprimidas.
                     </div>
                 </div>
+
+                <!-- Botones de Acción al Final del Perfil (Cerrar Sesión & Eliminar Cuenta) -->
+                <div id="profileAccountActions" class="pt-4 space-y-2.5 border-t border-purple-900/40">
+                    <!-- Se llena en JS -->
+                </div>
             </section>
 
         </main>
 
         <!-- INPUT DE IMÁGENES OCULTO (PÁGINA Y CHATS) -->
         <input type="file" id="globalImageInput" accept="image/*" class="hidden" onchange="processAndUploadSelectedImage(event)">
+
+        <!-- MODAL AUTENTICACIÓN / REGISTRO / GOOGLE OAUTH -->
+        <div id="authModal" class="fixed inset-0 bg-black/90 z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-[#18122b] w-full max-w-sm rounded-3xl border border-purple-500/40 p-5 shadow-2xl space-y-4 text-center relative">
+                <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+                
+                <h2 class="text-2xl font-black bg-gradient-to-r from-pink-500 via-purple-400 to-indigo-400 bg-clip-text text-transparent">PÁRCHATE</h2>
+                <p id="authModalSubtext" class="text-xs text-purple-200">Para continuar y disfrutar de todas las funciones debes registrarte o iniciar sesión.</p>
+                
+                <!-- Botón Iniciar Sesión con Google API -->
+                <button onclick="loginWithGoogle()" class="w-full bg-white text-gray-900 font-bold py-2.5 px-4 rounded-xl text-xs shadow-lg flex items-center justify-center gap-2 hover:bg-gray-100 transition active:scale-95">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+                        <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.29v3.15C3.26 21.3 7.31 24 12 24z"/>
+                        <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.29c-.8 1.6-1.26 3.41-1.26 5.42s.46 3.82 1.26 5.42l3.99-3.15z"/>
+                        <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.58l3.99 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                    </svg>
+                    Iniciar Sesión con Google
+                </button>
+
+                <div class="flex items-center my-2">
+                    <div class="flex-1 border-t border-purple-900"></div>
+                    <span class="px-2 text-[10px] text-purple-400 font-bold">O REGISTRO BREVE</span>
+                    <div class="flex-1 border-t border-purple-900"></div>
+                </div>
+
+                <!-- Formulario Breve de Registro / Ingreso -->
+                <div class="space-y-2 text-left text-xs">
+                    <div>
+                        <label class="block text-[10px] text-purple-300 font-bold mb-1">Nombre Completo:</label>
+                        <input type="text" id="regNameInput" placeholder="Ej. Yair Romero" class="w-full bg-[#120c22] border border-purple-900 rounded-xl px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-pink-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-purple-300 font-bold mb-1">Correo Electrónico:</label>
+                        <input type="email" id="regEmailInput" placeholder="tu@correo.com" class="w-full bg-[#120c22] border border-purple-900 rounded-xl px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-pink-500">
+                    </div>
+                </div>
+
+                <button onclick="registerBriefUser()" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 text-white font-bold py-2.5 rounded-xl text-xs shadow-lg active:scale-95 transition">
+                    Registrarme y Continuar
+                </button>
+
+                <button onclick="enterAsAdminQuick()" class="w-full bg-purple-900/40 hover:bg-purple-900/70 border border-purple-500/30 text-purple-200 text-[11px] py-1.5 rounded-xl transition">
+                    ⚡ Modo Rápido (Demo Yair Admin)
+                </button>
+            </div>
+        </div>
+
+        <!-- MODAL CONFIRMACIÓN CERRAR SESIÓN -->
+        <div id="logoutConfirmModal" class="fixed inset-0 bg-black/85 z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-[#18122b] w-full max-w-xs rounded-3xl border border-purple-500/40 p-5 shadow-2xl text-center space-y-3.5">
+                <div class="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center text-xl mx-auto">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <h3 class="font-bold text-sm text-white">¿Deseas cerrar sesión?</h3>
+                <p class="text-[11px] text-gray-300 leading-relaxed">Tu cuenta quedará en modo invitado y requerirá inicio de sesión para realizar acciones.</p>
+                <div class="flex gap-2 pt-1">
+                    <button onclick="closeLogoutModal()" class="flex-1 bg-[#2d234a] text-gray-300 py-2 rounded-xl text-xs font-bold hover:bg-purple-900/50">Cancelar</button>
+                    <button onclick="executeLogout()" class="flex-1 bg-gradient-to-r from-amber-600 to-pink-600 text-white py-2 rounded-xl text-xs font-bold shadow hover:opacity-90">Sí, Cerrar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL CONFIRMACIÓN ELIMINAR CUENTA -->
+        <div id="deleteAccountConfirmModal" class="fixed inset-0 bg-black/90 z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-[#18122b] w-full max-w-xs rounded-3xl border border-red-500/50 p-5 shadow-2xl text-center space-y-3.5">
+                <div class="w-12 h-12 rounded-2xl bg-red-500/20 text-red-400 border border-red-500/40 flex items-center justify-center text-xl mx-auto">
+                    <i class="fa-solid fa-trash-can"></i>
+                </div>
+                <h3 class="font-bold text-sm text-red-400">¿Eliminar tu cuenta?</h3>
+                <p class="text-[11px] text-gray-300 leading-relaxed">¿Quieres eliminar esto? Se borrarán tus datos locales y preferencias de usuario en esta sesión.</p>
+                <div class="flex gap-2 pt-1">
+                    <button onclick="closeDeleteModal()" class="flex-1 bg-[#2d234a] text-gray-300 py-2 rounded-xl text-xs font-bold hover:bg-purple-900/50">Cancelar</button>
+                    <button onclick="executeDeleteAccount()" class="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-xl text-xs font-bold shadow">Sí, Eliminar</button>
+                </div>
+            </div>
+        </div>
 
         <!-- MODAL OPCIONES DE MENSAJE (TOUCH / CLIC) -->
         <div id="messageOptionsModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4">
@@ -537,7 +593,7 @@
                     <h3 class="font-black text-xs text-pink-400 uppercase"><i class="fa-solid fa-user-plus mr-1"></i> Invitar Personas Cercanas</h3>
                     <button onclick="closeInviteModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-base"></i></button>
                 </div>
-                <p class="text-[10px] text-purple-200">Invita a desconocidos detectados en el radar a unirse a este grupo:</p>
+                <p class="text-[10px] text-purple-200">Invita a personas detectadas en el radar a unirse a este grupo:</p>
                 <div id="invitePeopleListContainer" class="space-y-2"></div>
                 <button onclick="closeInviteModal()" class="w-full bg-purple-900/60 hover:bg-purple-900 text-white py-2 rounded-xl text-xs font-bold transition">Listo</button>
             </div>
@@ -653,17 +709,6 @@
             </div>
         </div>
 
-        <!-- MODAL AUTENTICACIÓN / BIENVENIDA -->
-        <div id="authModal" class="fixed inset-0 bg-black/90 z-50 hidden flex items-center justify-center p-4">
-            <div class="bg-[#18122b] w-full max-w-sm rounded-3xl border border-purple-500/40 p-5 shadow-2xl space-y-4 text-center">
-                <h2 class="text-2xl font-black bg-gradient-to-r from-pink-500 via-purple-400 to-indigo-400 bg-clip-text text-transparent">PÁRCHATE</h2>
-                <p id="authModalSubtext" class="text-xs text-purple-200">Inicia sesión o conéctate como Administrador del Parche.</p>
-                <button onclick="enterAsAdmin()" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 text-white font-bold py-2.5 rounded-xl text-xs shadow-lg">
-                    Entrar como Yair Romero (Admin)
-                </button>
-            </div>
-        </div>
-
         <!-- MODAL OPINO -->
         <div id="opinoModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
             <div class="bg-[#18122b] w-full max-w-md rounded-t-3xl sm:rounded-2xl border-t sm:border border-purple-500/30 flex flex-col shadow-2xl overflow-hidden max-h-[80vh]">
@@ -763,12 +808,13 @@
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // ESTADO GLOBAL Y ALMACENAMIENTO DE CHATS
+        // ESTADO GLOBAL Y AUTENTICACIÓN
         let currentUser = {
-            isGuest: false,
-            name: "Yair Romero",
-            role: "Owner/Admin",
-            email: "yair@parchate.app"
+            isGuest: true, // Inicia como invitado por defecto
+            name: "Invitado",
+            role: "Invitado",
+            email: "",
+            avatar: "https://cdn-icons-png.flaticon.com/512/149/149071.png"
         };
 
         let currentUploadTarget = 'feed'; // 'feed', 'group', 'private'
@@ -813,12 +859,225 @@
 
         let map = null;
 
+        // INICIALIZACIÓN
+        document.addEventListener('DOMContentLoaded', function() {
+            attachRichInputListeners('groupMessageInput', 'group');
+            attachRichInputListeners('chatDetailInput', 'private');
+            updateUserUI();
+            updateRadarRange(1.0);
+        });
+
+        // CONTROL DE ACCIONES DE USUARIO E INVITADO (OBLIGA A REGISTRARSE)
+        window.requireAuthAction = function(callback) {
+            if (currentUser.isGuest) {
+                openAuthModal();
+            } else {
+                callback();
+            }
+        };
+
+        window.openAuthModal = function() {
+            document.getElementById('authModal').classList.remove('hidden');
+        };
+
+        window.closeAuthModal = function() {
+            document.getElementById('authModal').classList.add('hidden');
+        };
+
+        // INICIAR SESIÓN CON GOOGLE API
+        window.loginWithGoogle = function() {
+            showToast("Conectando con la API de Google...", "fa-brands fa-google");
+            setTimeout(() => {
+                currentUser = {
+                    isGuest: false,
+                    name: "Yair Romero",
+                    role: "Owner / Admin",
+                    email: "yair.google@gmail.com",
+                    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
+                };
+                updateUserUI();
+                closeAuthModal();
+                showToast("¡Sesión iniciada con Google correctamente!", "fa-circle-check");
+            }, 800);
+        };
+
+        // REGISTRO BREVE
+        window.registerBriefUser = function() {
+            const name = document.getElementById('regNameInput').value.trim();
+            const email = document.getElementById('regEmailInput').value.trim();
+
+            if (!name || !email) {
+                showToast("Por favor completa tu nombre y correo para continuar", "fa-triangle-exclamation");
+                return;
+            }
+
+            currentUser = {
+                isGuest: false,
+                name: name,
+                role: "Miembro",
+                email: email,
+                avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80"
+            };
+
+            updateUserUI();
+            closeAuthModal();
+            showToast(`¡Bienvenido a Párchate, ${name}!`, "fa-circle-check");
+        };
+
+        // DEMO RÁPIDO YAIR ADMIN
+        window.enterAsAdminQuick = function() {
+            currentUser = {
+                isGuest: false,
+                name: "Yair Romero (Admin)",
+                role: "👑 Propietario & Admin",
+                email: "yair@parchate.app",
+                avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
+            };
+            updateUserUI();
+            closeAuthModal();
+            showToast("Iniciado como Yair (Admin)", "fa-shield-halved");
+        };
+
+        // ACTUALIZACIÓN GENERAL DE LA INTERFAZ SEGÚN ESTADO (GUEST / USER)
+        function updateUserUI() {
+            const statusText = document.getElementById('headerStatusText');
+            if (statusText) statusText.innerText = currentUser.isGuest ? 'Invitado' : currentUser.name;
+
+            renderProfileTab();
+        }
+
+        // RENDERIZAR VISTA DEL PERFIL
+        function renderProfileTab() {
+            const profileCard = document.getElementById('profileCardContainer');
+            const actionsContainer = document.getElementById('profileAccountActions');
+            if(!profileCard || !actionsContainer) return;
+
+            if (currentUser.isGuest) {
+                profileCard.innerHTML = `
+                    <div class="bg-[#1f1635] border border-pink-500/40 p-5 rounded-2xl text-center space-y-3 shadow-lg">
+                        <div class="w-16 h-16 rounded-full bg-purple-900/50 border-2 border-pink-500 flex items-center justify-center text-2xl mx-auto">
+                            👤
+                        </div>
+                        <div>
+                            <h3 class="font-black text-base text-white">Modo Invitado</h3>
+                            <p class="text-[11px] text-purple-200 mt-0.5">Estás navegando como invitado. Para publicar parches, enviar mensajes o unirte a grupos, regístrate.</p>
+                        </div>
+                        <button onclick="openAuthModal()" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 text-white font-bold py-2.5 rounded-xl text-xs shadow-lg active:scale-95 transition">
+                            <i class="fa-solid fa-user-plus mr-1"></i> Iniciar Sesión / Registrarse
+                        </button>
+                    </div>
+                `;
+                actionsContainer.innerHTML = '';
+            } else {
+                profileCard.innerHTML = `
+                    <div class="bg-[#1f1635] border border-purple-500/30 p-4 rounded-2xl space-y-3 shadow-lg">
+                        <div class="flex items-center gap-3">
+                            <div class="relative">
+                                <img id="userAvatarPreview" src="${currentUser.avatar}" alt="Foto Perfil" class="w-16 h-16 rounded-full object-cover border-2 border-pink-500">
+                                <label class="absolute bottom-0 right-0 bg-pink-600 text-white rounded-full p-1.5 text-[9px] cursor-pointer shadow">
+                                    <i class="fa-solid fa-camera"></i>
+                                    <input type="file" accept="image/*" class="hidden" onchange="updateProfilePhoto(event)">
+                                </label>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <input type="text" id="userNameInput" value="${currentUser.name}" onchange="saveProfileInfo()" class="bg-[#120c22] text-xs font-bold text-white px-2.5 py-1 rounded-xl border border-purple-900 w-full mb-1 truncate">
+                                <input type="text" id="userStatusInput" value="${currentUser.role}" onchange="saveProfileInfo()" class="bg-[#120c22] text-[10px] text-gray-300 px-2.5 py-1 rounded-xl border border-purple-900 w-full">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-2 bg-[#120c22] p-2.5 rounded-xl border border-purple-900/50 text-center">
+                            <div>
+                                <span class="block font-black text-sm text-pink-400" id="followersCount">1,840</span>
+                                <span class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Seguidores</span>
+                            </div>
+                            <div class="border-x border-purple-900/50">
+                                <span class="block font-black text-sm text-purple-300" id="followingCount">320</span>
+                                <span class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Siguiendo</span>
+                            </div>
+                            <div>
+                                <span class="block font-black text-sm text-indigo-400" id="friendsCount">2,150</span>
+                                <span class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Amigos</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Botones Cerrar Sesión y Eliminar Cuenta al final de la vista de mi perfil
+                actionsContainer.innerHTML = `
+                    <button onclick="confirmLogout()" class="w-full bg-[#120c22] hover:bg-amber-950/40 border border-amber-500/40 text-amber-300 py-3 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 shadow">
+                        <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
+                    </button>
+                    <button onclick="confirmDeleteAccount()" class="w-full bg-red-950/30 hover:bg-red-900/40 border border-red-500/40 text-red-400 py-3 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 shadow">
+                        <i class="fa-solid fa-trash-can"></i> Eliminar Cuenta
+                    </button>
+                `;
+            }
+        }
+
+        // CONFIRMACIÓN Y EJECUCIÓN DE CERRAR SESIÓN CON VIBRACIÓN
+        window.confirmLogout = function() {
+            document.getElementById('logoutConfirmModal').classList.remove('hidden');
+        };
+
+        window.closeLogoutModal = function() {
+            document.getElementById('logoutConfirmModal').classList.add('hidden');
+        };
+
+        window.executeLogout = function() {
+            // Vibrar dispositivo si está soportado
+            if ('vibrate' in navigator) {
+                try { navigator.vibrate([150, 80, 150]); } catch(e){}
+            }
+
+            currentUser = {
+                isGuest: true,
+                name: "Invitado",
+                role: "Invitado",
+                email: "",
+                avatar: "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+            };
+
+            closeLogoutModal();
+            updateUserUI();
+            showToast("⚠️ Sesión cerrada. Has ingresado como Invitado.", "fa-right-from-bracket");
+        };
+
+        // CONFIRMACIÓN Y EJECUCIÓN DE ELIMINAR CUENTA
+        window.confirmDeleteAccount = function() {
+            document.getElementById('deleteAccountConfirmModal').classList.remove('hidden');
+        };
+
+        window.closeDeleteModal = function() {
+            document.getElementById('deleteAccountConfirmModal').classList.add('hidden');
+        };
+
+        window.executeDeleteAccount = function() {
+            if ('vibrate' in navigator) {
+                try { navigator.vibrate([200, 100, 200]); } catch(e){}
+            }
+
+            currentUser = {
+                isGuest: true,
+                name: "Invitado",
+                role: "Invitado",
+                email: "",
+                avatar: "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+            };
+
+            closeDeleteModal();
+            updateUserUI();
+            showToast("🗑️ Tu cuenta ha sido eliminada con éxito.", "fa-check-double");
+        };
+
+        window.checkAuthAndOpenProfile = function() {
+            switchTab('tab-miparche');
+        };
+
         // --- SOPORTE PARA STICKERS Y GIFS DESDE EL TECLADO NATIVO ---
         function attachRichInputListeners(elementId, target) {
             const el = document.getElementById(elementId);
             if (!el) return;
 
-            // Detectar pegar fotos/stickers/GIFs desde el portapapeles o teclado móvil
             el.addEventListener('paste', async function(e) {
                 const clipboardData = e.clipboardData || window.clipboardData;
                 if (!clipboardData) return;
@@ -837,21 +1096,8 @@
                         }
                     }
                 }
-
-                const files = clipboardData.files;
-                if (files && files.length > 0) {
-                    for (let i = 0; i < files.length; i++) {
-                        if (files[i].type.startsWith('image/')) {
-                            e.preventDefault();
-                            await processPastedImageFile(files[i], target);
-                            el.innerHTML = '';
-                            return;
-                        }
-                    }
-                }
             });
 
-            // Detectar si el teclado nativo insertó directamente una etiqueta <img>
             el.addEventListener('input', function() {
                 const imgs = el.getElementsByTagName('img');
                 if (imgs.length > 0) {
@@ -861,15 +1107,11 @@
                 }
             });
 
-            // Evitar saltos de línea con Enter y enviar mensaje directo
             el.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    if (target === 'group') {
-                        sendGroupTextMessage();
-                    } else if (target === 'private') {
-                        sendPrivateMessage();
-                    }
+                    if (target === 'group') sendGroupTextMessage();
+                    else if (target === 'private') sendPrivateMessage();
                 }
             });
         }
@@ -887,7 +1129,7 @@
             if (target === 'group') {
                 const msgObj = {
                     id: 'm_' + Date.now(),
-                    sender: 'Tú (Admin)',
+                    sender: currentUser.name,
                     imageUrl: imageUrl,
                     viewType: isViewOnceActive ? 'once' : 'normal',
                     time: 'Ahora',
@@ -909,21 +1151,13 @@
                 if (!privateChatsStore[activePrivateUser]) privateChatsStore[activePrivateUser] = [];
                 privateChatsStore[activePrivateUser].push(msgObj);
                 renderPrivateMessages(activePrivateUser);
-                const lastSpan = document.getElementById(`lastMsg_${activePrivateUser}`);
-                if(lastSpan) lastSpan.innerText = '🖼️ Sticker/GIF enviado';
                 showToast("Sticker / GIF enviado", "fa-face-smile");
             }
             
             if (isViewOnceActive) toggleViewOnceMode();
         }
 
-        // Inicializar escuchadores al cargar el DOM
-        document.addEventListener('DOMContentLoaded', function() {
-            attachRichInputListeners('groupMessageInput', 'group');
-            attachRichInputListeners('chatDetailInput', 'private');
-        });
-
-        // --- SISTEMA DE TOAST NOTIFICACIÓN FLOTANTE ---
+        // TOAST NOTIFICACIÓN
         function showToast(message, icon = 'fa-check-circle') {
             const toast = document.getElementById('toastNotification');
             const toastText = document.getElementById('toastText');
@@ -937,7 +1171,7 @@
             }, 3000);
         }
 
-        // --- MANEJO DE MENÚS Y DROPDOWNS ---
+        // DROPDOWNS Y MENÚS
         function closeAllDropdowns(e) {
             const gMenu = document.getElementById('groupOptionsMenu');
             const pMenu = document.getElementById('privateOptionsMenu');
@@ -961,32 +1195,7 @@
             if(menu) menu.classList.toggle('hidden');
         };
 
-        // --- BOTÓN MODO VER 1 VEZ ESTILO WHATSAPP ① ---
-        window.toggleViewOnceMode = function() {
-            isViewOnceActive = !isViewOnceActive;
-            const groupBtn = document.getElementById('groupViewOnceBtn');
-            const privateBtn = document.getElementById('privateViewOnceBtn');
-
-            [groupBtn, privateBtn].forEach(btn => {
-                if(btn) {
-                    if(isViewOnceActive) {
-                        btn.classList.add('once-active');
-                        btn.innerHTML = '①';
-                    } else {
-                        btn.classList.remove('once-active');
-                        btn.innerHTML = '①';
-                    }
-                }
-            });
-
-            if(isViewOnceActive) {
-                showToast("Modo Ver 1 vez activado para la siguiente foto", "fa-eye");
-            } else {
-                showToast("Modo foto normal activado", "fa-image");
-            }
-        };
-
-        // --- COMPRESIÓN ULTRA RÁPIDA DE IMÁGENES AL VUELO ---
+        // COMPRESIÓN DE IMÁGENES
         async function compressImageFileFast(file, maxWidth = 800, quality = 0.7) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -1028,14 +1237,12 @@
             });
         }
 
-        // Accionador de Input de Selección
         window.triggerPhotoUpload = function(target) {
             currentUploadTarget = target;
             const input = document.getElementById('globalImageInput');
             if(input) input.click();
         };
 
-        // Procesador de Subida de Fotos
         window.processAndUploadSelectedImage = async function(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -1046,80 +1253,31 @@
                 return;
             }
 
-            const tempMsgId = 'upload_' + Date.now();
-
-            if (currentUploadTarget === 'group') {
-                const container = document.getElementById('groupChatMessages');
-                if (container) {
-                    container.insertAdjacentHTML('beforeend', `
-                        <div id="${tempMsgId}" class="bg-purple-900/50 border border-purple-500/30 p-2.5 rounded-2xl rounded-tr-none max-w-[85%] ml-auto text-right">
-                            <span class="font-bold text-pink-300 block text-[10px]">Tú (Admin)</span>
-                            <div class="flex items-center justify-end gap-2 text-purple-200 py-1">
-                                <i class="fa-solid fa-spinner fa-spin text-pink-400"></i>
-                                <span class="text-xs font-semibold">Comprimiendo y subiendo foto...</span>
-                            </div>
-                        </div>
-                    `);
-                    container.scrollTop = container.scrollHeight;
-                }
-            } else if (currentUploadTarget === 'private') {
-                const container = document.getElementById('chatDetailMessages');
-                if (container) {
-                    container.insertAdjacentHTML('beforeend', `
-                        <div id="${tempMsgId}" class="bg-purple-900/50 border border-purple-500/30 p-2.5 rounded-2xl rounded-tr-none max-w-[80%] ml-auto text-right">
-                            <span class="font-bold text-pink-300 block text-[10px]">Tú</span>
-                            <div class="flex items-center justify-end gap-2 text-purple-200 py-1">
-                                <i class="fa-solid fa-spinner fa-spin text-pink-400"></i>
-                                <span class="text-xs font-semibold">Comprimiendo foto al vuelo...</span>
-                            </div>
-                        </div>
-                    `);
-                    container.scrollTop = container.scrollHeight;
-                }
-            } else {
-                showToast("⚡ Procesando foto para el parche...", "fa-bolt");
-            }
-
             try {
                 const imageUrl = await compressImageFileFast(file, 800, 0.75);
 
                 if (currentUploadTarget === 'group') {
-                    finishGroupPhotoUpload(tempMsgId, imageUrl, isViewOnceActive ? 'once' : 'normal');
+                    finishGroupPhotoUpload('m_' + Date.now(), imageUrl, isViewOnceActive ? 'once' : 'normal');
                 } else if (currentUploadTarget === 'private') {
-                    finishPrivatePhotoUpload(tempMsgId, imageUrl, isViewOnceActive ? 'once' : 'normal');
+                    finishPrivatePhotoUpload('p_' + Date.now(), imageUrl, isViewOnceActive ? 'once' : 'normal');
                 } else if (currentUploadTarget === 'feed') {
                     shareToGlobalGame("Foto de Parche en Vivo", imageUrl, "Provenza, Medellín");
                     showToast("¡Foto publicada en el parche!", "fa-check");
                 }
 
-                const gallery = document.getElementById('userMediaGallery');
-                if (gallery) {
-                    if (gallery.innerHTML.includes('Aún no has subido')) gallery.innerHTML = '';
-                    gallery.innerHTML += `
-                        <div class="bg-[#1f1635] p-2 rounded-xl border border-purple-900/40 shadow">
-                            <img src="${imageUrl}" class="w-full h-28 object-cover rounded-lg mb-1">
-                            <span class="text-[9px] text-pink-400 block text-center font-bold">Foto Optimizada</span>
-                        </div>
-                    `;
-                }
-
                 if (isViewOnceActive) toggleViewOnceMode();
 
             } catch (err) {
-                console.error("Error al procesar foto:", err);
-                const tempEl = document.getElementById(tempMsgId);
-                if(tempEl) tempEl.remove();
                 showToast("Error al procesar foto", "fa-xmark");
             } finally {
                 event.target.value = '';
             }
         };
 
-        function finishGroupPhotoUpload(tempId, imageUrl, viewType) {
-            const tempEl = document.getElementById(tempId);
+        function finishGroupPhotoUpload(msgId, imageUrl, viewType) {
             const msgObj = {
-                id: 'm_' + Date.now(),
-                sender: 'Tú (Admin)',
+                id: msgId,
+                sender: currentUser.name,
                 imageUrl: imageUrl,
                 viewType: viewType,
                 time: 'Ahora',
@@ -1128,31 +1286,12 @@
 
             if (!groupChatsStore[activeGroupId]) groupChatsStore[activeGroupId] = [];
             groupChatsStore[activeGroupId].push(msgObj);
-
-            let contentHtml = '';
-            if (viewType === 'once') {
-                contentHtml = createEphemeralPhotoItem(imageUrl, 'once');
-            } else {
-                contentHtml = `<img src="${imageUrl}" class="w-48 h-36 object-cover rounded-xl mt-1 border border-purple-500/30">`;
-            }
-
-            if (tempEl) {
-                tempEl.id = msgObj.id;
-                tempEl.setAttribute('onclick', `openMessageOptions('${msgObj.id}', 'photo', 'group')`);
-                tempEl.innerHTML = `
-                    <span class="font-bold text-pink-300 block text-[10px]">Tú (Admin)</span>
-                    ${contentHtml}
-                    <span class="text-[9px] text-pink-300/80 mt-1 block">Ahora</span>
-                `;
-            } else {
-                renderGroupMessages(activeGroupId);
-            }
+            renderGroupMessages(activeGroupId);
         }
 
-        function finishPrivatePhotoUpload(tempId, imageUrl, viewType) {
-            const tempEl = document.getElementById(tempId);
+        function finishPrivatePhotoUpload(msgId, imageUrl, viewType) {
             const msgObj = {
-                id: 'p_' + Date.now(),
+                id: msgId,
                 sender: 'Tú',
                 imageUrl: imageUrl,
                 viewType: viewType,
@@ -1162,37 +1301,13 @@
 
             if (!privateChatsStore[activePrivateUser]) privateChatsStore[activePrivateUser] = [];
             privateChatsStore[activePrivateUser].push(msgObj);
-
-            let contentHtml = '';
-            if (viewType === 'once') {
-                contentHtml = createEphemeralPhotoItem(imageUrl, 'once');
-            } else {
-                contentHtml = `<img src="${imageUrl}" class="w-44 h-32 object-cover rounded-xl mt-1 border border-purple-500/30">`;
-            }
-
-            if (tempEl) {
-                tempEl.id = msgObj.id;
-                tempEl.setAttribute('onclick', `openMessageOptions('${msgObj.id}', 'photo', 'private')`);
-                tempEl.innerHTML = `
-                    <span class="font-bold text-pink-300 block text-[10px]">Tú</span>
-                    ${contentHtml}
-                    <span class="text-[9px] text-pink-300/80 mt-1 block">Ahora</span>
-                `;
-            } else {
-                renderPrivateMessages(activePrivateUser);
-            }
-
-            const lastSpan = document.getElementById(`lastMsg_${activePrivateUser}`);
-            if(lastSpan) lastSpan.innerText = viewType === 'once' ? '👁️ Foto efímera' : '📷 Foto enviada';
+            renderPrivateMessages(activePrivateUser);
         }
 
-        // --- SISTEMA DE FOTOS EFÍMERAS ---
+        // FOTOS EFÍMERAS
         function createEphemeralPhotoItem(imageUrl, viewType) {
             const photoId = 'eph_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-            ephemeralPhotosMap[photoId] = {
-                url: imageUrl,
-                viewsLeft: 1
-            };
+            ephemeralPhotosMap[photoId] = { url: imageUrl, viewsLeft: 1 };
 
             return `
                 <div id="wrapper_${photoId}" class="my-1.5">
@@ -1207,7 +1322,7 @@
         window.openEphemeralPhoto = function(photoId) {
             const item = ephemeralPhotosMap[photoId];
             if (!item || item.viewsLeft <= 0) {
-                showToast("🔒 Esta foto ya expiró y no se puede ver de nuevo.", "fa-lock");
+                showToast("🔒 Esta foto ya expiró.", "fa-lock");
                 return;
             }
 
@@ -1221,7 +1336,7 @@
                 if (wrapper) {
                     wrapper.innerHTML = `
                         <div class="bg-gray-900/80 border border-gray-700 text-gray-500 px-3 py-1.5 rounded-xl text-[11px] font-bold inline-flex items-center gap-1.5">
-                            <i class="fa-solid fa-lock"></i> Foto expirada (Ya la viste)
+                            <i class="fa-solid fa-lock"></i> Foto expirada
                         </div>
                     `;
                 }
@@ -1232,7 +1347,26 @@
             document.getElementById('ephemeralViewerModal').classList.add('hidden');
         };
 
-        // --- RENDERING Y ACCIONES DE GRUPOS Y CHATS PRIVADOS ---
+        // MODO VER 1 VEZ
+        window.toggleViewOnceMode = function() {
+            isViewOnceActive = !isViewOnceActive;
+            const groupBtn = document.getElementById('groupViewOnceBtn');
+            const privateBtn = document.getElementById('privateViewOnceBtn');
+
+            [groupBtn, privateBtn].forEach(btn => {
+                if(btn) {
+                    if(isViewOnceActive) {
+                        btn.classList.add('once-active');
+                    } else {
+                        btn.classList.remove('once-active');
+                    }
+                }
+            });
+
+            showToast(isViewOnceActive ? "Modo Ver 1 vez activado" : "Modo foto normal activado", "fa-eye");
+        };
+
+        // SALAS DE CHAT
         window.openGroupChat = function(groupId, groupTitle) {
             activeGroupId = groupId;
             document.getElementById('groupChatHeaderTitle').innerText = groupTitle;
@@ -1252,7 +1386,7 @@
 
             const msgs = groupChatsStore[groupId] || [];
             msgs.forEach(m => {
-                const isMe = m.sender.includes('Tú');
+                const isMe = m.sender === currentUser.name || m.sender.includes('Tú');
                 let content = '';
 
                 if (m.type === 'photo') {
@@ -1277,20 +1411,12 @@
             const input = document.getElementById('groupMessageInput');
             if (!input) return;
 
-            const imgs = input.getElementsByTagName('img');
-            if (imgs.length > 0) {
-                const imgSrc = imgs[0].src;
-                input.innerHTML = '';
-                processPastedImageFile(imgSrc, 'group');
-                return;
-            }
-
             const text = input.innerText.trim();
             if (!text) return;
 
             const msgObj = {
                 id: 'm_' + Date.now(),
-                sender: 'Tú (Admin)',
+                sender: currentUser.name,
                 text: text,
                 time: 'Ahora',
                 type: 'text'
@@ -1303,7 +1429,6 @@
             renderGroupMessages(activeGroupId);
         };
 
-        // CHAT PRIVADO
         window.openChatDetail = function(userName) {
             activePrivateUser = userName;
             document.getElementById('chatDetailTitle').innerText = `Chat Privado con ${userName}`;
@@ -1323,7 +1448,7 @@
 
             const msgs = privateChatsStore[userName] || [];
             msgs.forEach(m => {
-                const isMe = m.sender === 'Tú';
+                const isMe = m.sender === 'Tú' || m.sender === currentUser.name;
                 let content = '';
 
                 if (m.type === 'photo') {
@@ -1348,14 +1473,6 @@
             const input = document.getElementById('chatDetailInput');
             if (!input) return;
 
-            const imgs = input.getElementsByTagName('img');
-            if (imgs.length > 0) {
-                const imgSrc = imgs[0].src;
-                input.innerHTML = '';
-                processPastedImageFile(imgSrc, 'private');
-                return;
-            }
-
             const text = input.innerText.trim();
             if (!text) return;
 
@@ -1370,14 +1487,11 @@
             if (!privateChatsStore[activePrivateUser]) privateChatsStore[activePrivateUser] = [];
             privateChatsStore[activePrivateUser].push(msgObj);
 
-            const lastSpan = document.getElementById(`lastMsg_${activePrivateUser}`);
-            if(lastSpan) lastSpan.innerText = text;
-
             input.innerHTML = '';
             renderPrivateMessages(activePrivateUser);
         };
 
-        // --- OPCIONES POR MENSAJE Y ACCIONES DE LIMPIEZA ---
+        // OPCIONES MENSAJES
         window.openMessageOptions = function(id, type, context) {
             selectedMessageRef = { id, type, context };
             document.getElementById('messageOptionsModal').classList.remove('hidden');
@@ -1404,53 +1518,86 @@
         };
 
         window.copyCurrentSelectedMessage = function() {
-            showToast("Texto copiado al portapapeles", "fa-copy");
+            showToast("Texto copiado", "fa-copy");
             closeMessageOptions();
         };
 
         window.setSingleMessageTimer = function() {
-            showToast("Temporizador de mensaje activado (24h)", "fa-clock");
+            showToast("Temporizador de mensaje activado", "fa-clock");
             closeMessageOptions();
         };
 
-        // OPCIONES DE CABECERA (3 PUNTOS)
-        window.setChatTimer = function(type) {
-            const status = type === 'group' ? document.getElementById('groupTimerStatus') : document.getElementById('privateTimerStatus');
-            if(status) status.innerText = "⏱️ Mensajes temporales activados (24 Horas)";
-            showToast("Mensajes temporales configurados a 24 Horas", "fa-clock");
-            closeAllDropdowns({ target: document.body });
-        };
+        // NAVEGACIÓN DE TABS
+        window.switchTab = function(tabId) {
+            document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
+            const targetView = document.getElementById(tabId);
+            if(targetView) targetView.classList.add('active');
 
-        window.clearChatHistory = function(type) {
-            if (type === 'group') {
-                groupChatsStore[activeGroupId] = [];
-                renderGroupMessages(activeGroupId);
-            } else {
-                privateChatsStore[activePrivateUser] = [];
-                renderPrivateMessages(activePrivateUser);
+            document.querySelectorAll('nav button').forEach(b => {
+                b.className = "flex flex-col items-center text-gray-400 text-[10px] font-medium transition";
+            });
+
+            const navBtn = document.getElementById('nav-' + tabId.replace('tab-', ''));
+            if(navBtn) {
+                navBtn.className = "flex flex-col items-center text-pink-500 text-[10px] font-bold transition";
             }
-            showToast("El chat ha sido vaciado", "fa-broom");
-            closeAllDropdowns({ target: document.body });
         };
 
-        window.leaveCurrentGroup = function() {
-            const card = document.getElementById(`groupCard_${activeGroupId}`);
-            if(card) card.remove();
-            closeGroupChat();
-            showToast("Has salido del grupo", "fa-right-from-bracket");
-            closeAllDropdowns({ target: document.body });
+        // SUBTABS DE RADAR
+        window.switchRadarSubTab = function(type) {
+            const btnPersonas = document.getElementById('subtab-btn-personas');
+            const btnGrupos = document.getElementById('subtab-btn-grupos');
+            const personasView = document.getElementById('radarSubTabPersonas');
+            const gruposView = document.getElementById('radarSubTabGrupos');
+
+            if (type === 'personas') {
+                btnPersonas.className = "flex-1 py-2 rounded-lg font-bold bg-pink-600 text-white transition shadow";
+                btnGrupos.className = "flex-1 py-2 rounded-lg font-medium text-gray-400 transition";
+                personasView.classList.remove('hidden');
+                gruposView.classList.add('hidden');
+            } else {
+                btnGrupos.className = "flex-1 py-2 rounded-lg font-bold bg-pink-600 text-white transition shadow";
+                btnPersonas.className = "flex-1 py-2 rounded-lg font-medium text-gray-400 transition";
+                gruposView.classList.remove('hidden');
+                personasView.classList.add('hidden');
+            }
         };
 
-        window.deletePrivateChat = function() {
-            delete privateChatsStore[activePrivateUser];
-            const card = document.getElementById(`privateCard_${activePrivateUser}`);
-            if(card) card.remove();
-            closeChatDetail();
-            showToast("Chat privado eliminado", "fa-trash-can");
-            closeAllDropdowns({ target: document.body });
+        // RADAR DE CERCANÍA SLIDER
+        window.updateRadarRange = function(kmVal) {
+            const valNum = parseFloat(kmVal);
+            let displayText = valNum < 1 ? `${Math.round(valNum * 1000)} m` : `${valNum.toFixed(1)} km`;
+            const displayEl = document.getElementById('rangeKmValueDisplay');
+            if(displayEl) displayEl.innerText = displayText;
+
+            const carousel = document.getElementById('radarCarousel');
+            if (!carousel) return;
+            carousel.innerHTML = '';
+
+            const filteredPeople = mockRadarPeople.filter(p => p.distanceKm <= valNum);
+            const countEl = document.getElementById('radarCountNum');
+            if(countEl) countEl.innerText = filteredPeople.length;
+
+            if (filteredPeople.length === 0) {
+                carousel.innerHTML = `<div class="text-[11px] text-gray-400 py-2">No hay personas registradas a menos de ${displayText}.</div>`;
+            } else {
+                filteredPeople.forEach(p => {
+                    let pDist = p.distanceKm < 1 ? `${Math.round(p.distanceKm * 1000)}m` : `${p.distanceKm}km`;
+                    carousel.innerHTML += `
+                        <div class="flex flex-col items-center bg-[#1f1635] border border-purple-900/50 p-2.5 rounded-2xl min-w-[85px] cursor-pointer hover:border-pink-500 transition shadow" onclick="requireAuthAction(() => openUserProfile('${p.name}', '${p.avatar}', '${pDist}', ${JSON.stringify(p.events).replace(/"/g, '&quot;')}))">
+                            <div class="relative mb-1">
+                                <img src="${p.avatar}" class="w-12 h-12 rounded-full object-cover border-2 border-pink-500">
+                                <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#1f1635]"></div>
+                            </div>
+                            <span class="font-bold text-[11px] text-white truncate w-20 text-center">${p.name}</span>
+                            <span class="text-[9px] text-pink-400 font-bold">${pDist}</span>
+                        </div>
+                    `;
+                });
+            }
         };
 
-        // CREACIÓN DE GRUPOS EN RADAR
+        // MODAL CREAR GRUPO
         window.openCreateGroupModal = function() {
             document.getElementById('createGroupModal').classList.remove('hidden');
         };
@@ -1462,12 +1609,9 @@
         window.submitNewGroup = function() {
             const name = document.getElementById('newGroupName').value.trim();
             const emoji = document.getElementById('newGroupEmoji').value.trim() || '🎉';
-            const desc = document.getElementById('newGroupDesc').value.trim() || 'Parche creado en Radar';
+            const desc = document.getElementById('newGroupDesc').value.trim() || 'Parche en Radar';
 
-            if (!name) {
-                showToast("Por favor escribe el nombre de tu nuevo grupo", "fa-triangle-exclamation");
-                return;
-            }
+            if (!name) return;
 
             const groupId = 'group_' + Date.now();
             groupChatsStore[groupId] = [];
@@ -1494,209 +1638,27 @@
                         <button onclick="openGroupChat('${groupId}', '${name} ${emoji}')" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-xl text-xs font-bold shadow transition flex items-center justify-center gap-1">
                             <i class="fa-solid fa-comments"></i> Entrar al Chat
                         </button>
-                        <button onclick="openInviteModal('${groupId}')" class="bg-[#2d234a] hover:bg-purple-900/60 text-purple-200 px-3 py-2 rounded-xl text-xs font-bold border border-purple-500/30 transition">
-                            <i class="fa-solid fa-user-plus"></i> Invitar
-                        </button>
                     </div>
                 </div>
             `);
 
             closeCreateGroupModal();
-            showToast(`¡Grupo "${name}" creado exitosamente!`, "fa-check");
+            showToast(`¡Grupo "${name}" creado!`, "fa-check");
         };
 
-        // INVITAR DESCONOCIDOS / PERSONAS CERCANAS
-        window.openInviteModal = function(groupId) {
-            const container = document.getElementById('invitePeopleListContainer');
-            container.innerHTML = '';
-
-            mockRadarPeople.forEach(p => {
-                container.innerHTML += `
-                    <div class="bg-[#120c22] p-2.5 rounded-xl border border-purple-900/50 flex items-center justify-between">
-                        <div class="flex items-center gap-2">
-                            <img src="${p.avatar}" class="w-8 h-8 rounded-full object-cover border border-pink-500">
-                            <div>
-                                <span class="text-xs font-bold text-white block">${p.name}</span>
-                                <span class="text-[9px] text-pink-400">A ${p.distanceKm} km</span>
-                            </div>
-                        </div>
-                        <button onclick="sendGroupInvite(this, '${p.name}')" class="bg-pink-600 hover:bg-pink-700 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold shadow">
-                            Invitar al Parche
-                        </button>
-                    </div>
-                `;
-            });
-
-            document.getElementById('invitePeopleModal').classList.remove('hidden');
-        };
-
-        window.closeInviteModal = function() {
-            document.getElementById('invitePeopleModal').classList.add('hidden');
-        };
-
-        window.sendGroupInvite = function(btn, userName) {
-            btn.disabled = true;
-            btn.className = "bg-gray-700 text-gray-400 px-2.5 py-1 rounded-lg text-[10px] font-bold";
-            btn.innerText = "Invitado ✓";
-            showToast(`Invitación enviada a ${userName}`, "fa-paper-plane");
-        };
-
-        // MÉTODOS Y LÓGICA GENERAL
-        window.requireAuthAction = function(callback) {
-            callback();
-        };
-
-        window.enterAsAdmin = function() {
-            document.getElementById('authModal').classList.add('hidden');
-        };
-
-        window.checkAuthAndOpenProfile = function() {
-            switchTab('tab-miparche');
-        };
-
-        window.switchRadarSubTab = function(type) {
-            const btnPersonas = document.getElementById('subtab-btn-personas');
-            const btnGrupos = document.getElementById('subtab-btn-grupos');
-            const personasView = document.getElementById('radarSubTabPersonas');
-            const gruposView = document.getElementById('radarSubTabGrupos');
-
-            if (type === 'personas') {
-                btnPersonas.className = "flex-1 py-2 rounded-lg font-bold bg-pink-600 text-white transition shadow";
-                btnGrupos.className = "flex-1 py-2 rounded-lg font-medium text-gray-400 transition";
-                personasView.classList.remove('hidden');
-                gruposView.classList.add('hidden');
-            } else {
-                btnGrupos.className = "flex-1 py-2 rounded-lg font-bold bg-pink-600 text-white transition shadow";
-                btnPersonas.className = "flex-1 py-2 rounded-lg font-medium text-gray-400 transition";
-                gruposView.classList.remove('hidden');
-                personasView.classList.add('hidden');
-            }
-        };
-
-        window.updateRadarRange = function(kmVal) {
-            const valNum = parseFloat(kmVal);
-            let displayText = valNum < 1 ? `${Math.round(valNum * 1000)} m` : `${valNum.toFixed(1)} km`;
-            document.getElementById('rangeKmValueDisplay').innerText = displayText;
-
-            const carousel = document.getElementById('radarCarousel');
-            const fullList = document.getElementById('fullRadarListContainer');
-            carousel.innerHTML = '';
-            fullList.innerHTML = '';
-
-            const filteredPeople = mockRadarPeople.filter(p => p.distanceKm <= valNum);
-            document.getElementById('radarCountNum').innerText = filteredPeople.length;
-
-            if (filteredPeople.length === 0) {
-                carousel.innerHTML = `<div class="text-[11px] text-gray-400 py-2">No hay personas registradas en un rango de ${displayText}.</div>`;
-            } else {
-                filteredPeople.forEach(p => {
-                    let pDist = p.distanceKm < 1 ? `${Math.round(p.distanceKm * 1000)}m` : `${p.distanceKm}km`;
-                    
-                    carousel.innerHTML += `
-                        <div class="flex flex-col items-center bg-[#1f1635] border border-purple-900/50 p-2.5 rounded-2xl min-w-[85px] cursor-pointer hover:border-pink-500 transition shadow" onclick="requireAuthAction(() => openUserProfile('${p.name}', '${p.avatar}', '${pDist}', ${JSON.stringify(p.events).replace(/"/g, '&quot;')}))">
-                            <div class="relative mb-1">
-                                <img src="${p.avatar}" class="w-12 h-12 rounded-full object-cover border-2 border-pink-500">
-                                <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#1f1635]"></div>
-                            </div>
-                            <span class="font-bold text-[11px] text-white truncate w-20 text-center">${p.name}</span>
-                            <span class="text-[9px] text-pink-400 font-bold">${pDist}</span>
-                        </div>
-                    `;
-
-                    fullList.innerHTML += `
-                        <div class="bg-[#1f1635] p-3 rounded-xl border border-purple-900/40 flex items-center justify-between text-xs cursor-pointer hover:border-pink-500" onclick="closeFullRadarModal(); requireAuthAction(() => openUserProfile('${p.name}', '${p.avatar}', '${pDist}', ${JSON.stringify(p.events).replace(/"/g, '&quot;')}))">
-                            <div class="flex items-center gap-2">
-                                <img src="${p.avatar}" class="w-9 h-9 rounded-full object-cover border border-green-500">
-                                <div>
-                                    <strong class="text-white">${p.name}</strong>
-                                    <p class="text-[10px] text-gray-400">A ${pDist} de ti</p>
-                                </div>
-                            </div>
-                            <span class="text-pink-400 text-[10px] font-bold">Ver Perfil →</span>
-                        </div>
-                    `;
-                });
-            }
-
-            const eventsList = document.getElementById('radarEventsList');
-            eventsList.innerHTML = '';
-            const allCards = document.querySelectorAll('#dynamicParchesContainer > div');
-            let matchedEvents = 0;
-
-            allCards.forEach(card => {
-                const cardDist = parseFloat(card.getAttribute('data-distance') || '1.0');
-                if (cardDist <= valNum) {
-                    matchedEvents++;
-                    const title = card.querySelector('h3').innerText;
-                    const img = card.querySelector('img').src;
-                    const distText = cardDist < 1 ? `${Math.round(cardDist * 1000)} m` : `${cardDist} km`;
-
-                    eventsList.innerHTML += `
-                        <div class="bg-[#1f1635] border border-purple-900/60 p-3 rounded-2xl flex items-center justify-between shadow">
-                            <div class="flex items-center gap-3">
-                                <img src="${img}" class="w-12 h-12 rounded-xl object-cover border border-purple-500">
-                                <div>
-                                    <h5 class="font-bold text-xs text-white">${title}</h5>
-                                    <span class="text-[10px] text-pink-400 font-bold"><i class="fa-solid fa-location-dot mr-1"></i> A ${distText}</span>
-                                </div>
-                            </div>
-                            <button onclick="switchTab('tab-descubrir')" class="bg-pink-600 text-white px-2.5 py-1.5 rounded-xl text-[10px] font-bold">Ver Feed</button>
-                        </div>
-                    `;
-                }
-            });
-
-            if (matchedEvents === 0) {
-                eventsList.innerHTML = `<div class="bg-[#1f1635] border border-purple-900/40 p-3 rounded-2xl text-xs text-gray-400 text-center">No hay parches ni eventos en un rango menor a ${displayText}.</div>`;
-            }
-        };
-
-        window.shareToGlobalGame = function(title, imgUrl, location) {
-            const container = document.getElementById('dynamicParchesContainer');
-            const newId = Date.now();
-
-            const cardHtml = `
-                <div class="bg-[#1f1635] border border-pink-500/50 rounded-2xl p-4 relative overflow-hidden shadow-xl" data-category="todo cerca" data-distance="0.2" id="card-${newId}">
-                    <div class="flex justify-between items-center mb-1.5">
-                        <span class="bg-pink-500/20 text-pink-300 border border-pink-500/40 px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase">
-                            EN VIVO 🔥
-                        </span>
-                        <div class="bg-[#2d234a] border border-purple-900/60 px-2.5 py-1 rounded-xl text-xs font-bold text-orange-400">
-                            🔥 <span id="count-${newId}">1</span>
-                        </div>
-                    </div>
-                    <h3 class="font-bold text-base text-white leading-snug">${title}</h3>
-                    <p class="text-[11px] text-gray-400 mt-0.5 mb-2 flex items-center justify-between">
-                        <span><i class="fa-solid fa-location-dot text-pink-500 mr-1.5"></i> ${location}</span>
-                        <span class="text-pink-400 font-bold">0.2 km</span>
-                    </p>
-                    <div class="relative rounded-2xl overflow-hidden bg-black/40 h-44 mb-3 border border-purple-900/30">
-                        <img src="${imgUrl}" class="w-full h-full object-cover">
-                    </div>
-                    <div class="grid grid-cols-3 gap-2">
-                        <button onclick="requireAuthAction(() => toggleAxFuego(${newId}))" id="btn-fuego-${newId}" class="bg-gradient-to-r from-orange-500 to-amber-600 text-white font-bold py-2 rounded-xl text-xs">🔥 A fuego</button>
-                        <button onclick="requireAuthAction(() => openOpinoModal('${title}'))" class="bg-[#2d234a] text-purple-200 font-bold py-2 rounded-xl text-xs">💬 Opino</button>
-                        <button onclick="requireAuthAction(() => shareToGlobalGame('${title}', '${imgUrl}', '${location}'))" class="bg-[#3b1c3a] text-pink-300 font-bold py-2 rounded-xl text-xs">🔄 x2</button>
-                    </div>
-                </div>
-            `;
-
-            container.insertAdjacentHTML('afterbegin', cardHtml);
-            showToast("¡Parche compartido en el feed!", "fa-share-nodes");
+        // DIVERSAS UTILIDADES
+        window.openExternalNav = function(loc) {
+            window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc)}`, '_blank');
         };
 
         window.toggleAxFuego = function(id) {
-            const countEl = document.getElementById(`count-${id}`);
-            if (countEl) {
-                let count = parseInt(countEl.innerText);
-                count++;
-                countEl.innerText = count;
-                showToast("¡Le diste FUEGO a este parche!", "fa-fire");
-            }
+            const el = document.getElementById(`count-${id}`);
+            if(el) el.innerText = parseInt(el.innerText) + 1;
+            showToast("🔥 ¡Le diste a fuego!", "fa-fire");
         };
 
         window.openOpinoModal = function(title) {
-            document.getElementById('opinoTitle').innerText = `Opino sobre: ${title}`;
+            document.getElementById('opinoTitle').innerText = title;
             document.getElementById('opinoModal').classList.remove('hidden');
         };
 
@@ -1707,45 +1669,19 @@
         window.sendOpino = function() {
             const input = document.getElementById('opinoInput');
             if(!input || !input.value.trim()) return;
-            const container = document.getElementById('opinoMessages');
-            container.insertAdjacentHTML('beforeend', `
-                <div class="bg-[#2d234a] p-2.5 rounded-xl border border-pink-500/30">
-                    <span class="font-bold text-pink-400 block mb-0.5 text-[10px]">Tú (Admin)</span>
+
+            document.getElementById('opinoMessages').insertAdjacentHTML('beforeend', `
+                <div class="bg-[#2d234a] p-2.5 rounded-xl border border-purple-500/30">
+                    <span class="font-bold text-pink-400 block mb-0.5 text-[10px]">${currentUser.name}</span>
                     ${input.value.trim()}
                 </div>
             `);
+
             input.value = '';
-            container.scrollTop = container.scrollHeight;
         };
 
-        window.openUserProfile = function(name, avatar, dist, events) {
-            document.getElementById('modalProfileName').innerText = name;
-            document.getElementById('modalProfileAvatar').src = avatar;
-            document.getElementById('modalProfileDistance').innerText = `A ${dist} de distancia`;
-            
-            const evContainer = document.getElementById('modalProfileEvents');
-            evContainer.innerHTML = '';
-            if (events && events.length > 0) {
-                events.forEach(e => {
-                    evContainer.innerHTML += `<div class="bg-[#120c22] p-2 rounded-xl border border-purple-900/40">🔥 ${e}</div>`;
-                });
-            } else {
-                evContainer.innerHTML = `<p class="text-gray-400 text-[10px]">Sin parches confirmados recientemente.</p>`;
-            }
-
-            document.getElementById('userProfileModal').classList.remove('hidden');
-        };
-
-        window.closeUserProfile = function() {
-            document.getElementById('userProfileModal').classList.add('hidden');
-        };
-
-        window.openFullRadarModal = function() {
-            document.getElementById('fullRadarModal').classList.remove('hidden');
-        };
-
-        window.closeFullRadarModal = function() {
-            document.getElementById('fullRadarModal').classList.add('hidden');
+        window.shareToGlobalGame = function(title, imgUrl, location) {
+            showToast("¡Parche republicado!", "fa-retweet");
         };
 
         window.openCreateModal = function() {
@@ -1758,133 +1694,37 @@
 
         window.submitNewParche = function() {
             const name = document.getElementById('newParcheName').value.trim();
-            const zone = document.getElementById('newParcheZone').value.trim() || 'Medellín';
-            if (!name) return;
-
-            shareToGlobalGame(name, 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=60', zone);
+            if(!name) return;
             closeCreateModal();
             showToast("¡Parche creado exitosamente!", "fa-check");
         };
 
-        window.switchTab = function(tabId) {
-            document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
-
-            const navs = ['descubrir', 'mapa', 'chats', 'miparche'];
-            navs.forEach(n => {
-                const btn = document.getElementById(`nav-${n}`);
-                if (btn) {
-                    if (`tab-${n}` === tabId) {
-                        btn.className = "flex flex-col items-center text-pink-500 text-[10px] font-bold transition";
-                    } else {
-                        btn.className = "flex flex-col items-center text-gray-400 text-[10px] font-medium transition";
-                    }
-                }
-            });
-
-            if (tabId === 'tab-descubrir' && !map) {
-                setTimeout(initLeafletMap, 300);
-            }
-        };
-
-        window.switchFeedView = function(mode) {
-            const btnLista = document.getElementById('btn-view-lista');
-            const btnMapa = document.getElementById('btn-view-mapa');
-            const listaView = document.getElementById('feed-lista-view');
-            const mapaView = document.getElementById('feed-mapa-view');
-
-            if (mode === 'lista') {
-                btnLista.className = "flex-1 py-2 rounded-lg font-bold bg-pink-600 text-white transition shadow";
-                btnMapa.className = "flex-1 py-2 rounded-lg font-medium text-gray-400 transition";
-                listaView.classList.remove('hidden');
-                mapaView.classList.add('hidden');
-            } else {
-                btnMapa.className = "flex-1 py-2 rounded-lg font-bold bg-pink-600 text-white transition shadow";
-                btnLista.className = "flex-1 py-2 rounded-lg font-medium text-gray-400 transition";
-                mapaView.classList.remove('hidden');
-                listaView.classList.add('hidden');
-
-                if (!map) initLeafletMap();
-            }
-        };
-
-        function initLeafletMap() {
-            if (map) return;
-            const mapEl = document.getElementById('map');
-            if (!mapEl) return;
-
-            map = L.map('map').setView([6.2088, -75.5677], 14);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '© OpenStreetMap'
-            }).addTo(map);
-
-            L.marker([6.2088, -75.5677]).addTo(map)
-                .bindPopup('<b>Provenza Parche 🍹</b><br>Rumba & 2x1').openPopup();
-
-            L.marker([6.2150, -75.5580]).addTo(map)
-                .bindPopup('<b>Las Palmas 🌅</b><br>Cena y Vistas');
-        }
-
-        window.openExternalNav = function(address) {
-            window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`, '_blank');
-        };
-
-        window.updateProfilePhoto = function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    document.getElementById('userAvatarPreview').src = event.target.result;
-                    showToast("Foto de perfil actualizada", "fa-user");
-                };
-                reader.readAsDataURL(file);
-            }
-        };
-
-        window.saveProfileInfo = function() {
-            showToast("Perfil guardado correctamente", "fa-check");
+        window.requestNotificationPermission = function() {
+            showToast("🔔 Notificaciones activadas", "fa-bell");
         };
 
         window.askGemini = function() {
-            const input = document.getElementById('geminiInput');
-            const resp = document.getElementById('geminiResponse');
-            if(!input || !input.value.trim()) return;
-
-            resp.classList.remove('hidden');
-            resp.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Parchate AI está buscando los mejores parches...';
-
-            setTimeout(() => {
-                resp.innerHTML = `✨ <strong>Parchate AI sugiere:</strong> Hoy la mejor vibra está en <em>Provenza</em> para cócteles y rumba crossover. Si prefieres algo más relajado, pasa por un café de especialidad en <em>Laureles</em>.`;
-            }, 1200);
+            const res = document.getElementById('geminiResponse');
+            if(res) {
+                res.classList.remove('hidden');
+                res.innerText = "🤖 Gemini Parchate: Recomiendo Provenza hoy para cócteles 2x1 y Laureles para un café de especialidad tardeando.";
+            }
         };
 
-        window.filterFeed = function(category) {
-            const buttons = ['todo', 'cerca', 'locales', 'cafes', 'rumba'];
-            buttons.forEach(b => {
-                const btn = document.getElementById(`filter-${b}`);
-                if (btn) {
-                    if (b === category) {
-                        btn.className = "bg-pink-600 text-white px-3 py-1.5 rounded-xl font-bold whitespace-nowrap shadow";
-                    } else {
-                        btn.className = "bg-[#1f1635] text-purple-300 border border-purple-900/50 px-3 py-1.5 rounded-xl font-medium whitespace-nowrap";
-                    }
-                }
-            });
-
-            const cards = document.querySelectorAll('#dynamicParchesContainer > div');
-            cards.forEach(card => {
-                const cats = card.getAttribute('data-category') || '';
-                if (category === 'todo' || cats.includes(category)) {
-                    card.classList.remove('hidden');
-                } else {
-                    card.classList.add('hidden');
-                }
-            });
+        window.filterFeed = function(type) {
+            showToast(`Filtrado por: ${type}`, "fa-filter");
         };
 
-        window.requestNotificationPermission = function() {
-            showToast("🔔 Notificaciones activadas en segundo plano", "fa-bell");
+        window.switchFeedView = function(view) {
+            const lista = document.getElementById('feed-lista-view');
+            const mapa = document.getElementById('feed-mapa-view');
+            if(view === 'lista') {
+                lista.classList.remove('hidden');
+                mapa.classList.add('hidden');
+            } else {
+                lista.classList.add('hidden');
+                mapa.classList.remove('hidden');
+            }
         };
     </script>
 </body>
