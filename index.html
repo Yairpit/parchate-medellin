@@ -1727,5 +1727,166 @@
             }
         };
     </script>
+<script>
+/* ===== PÁRCHATE · SUPABASE ===== */
+/* BUSCA ESTA LÍNEA Y PEGA TU PROJECT URL (ej: https://abcdxyz.supabase.co) */
+const SB_URL='PEGA_AQUI_TU_PROJECT_URL';
+const SB_KEY='sb_publishable_pfLexW8EDmF9-_SRjaiKWQ_y16Yar5f';
+(function(){
+'use strict';
+const sb=/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(SB_URL)&&window.supabase?window.supabase.createClient(SB_URL,SB_KEY):null;
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm=s=>String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+const v=id=>(document.getElementById(id)?.value||'').trim();
+const AV='https://cdn-icons-png.flaticon.com/512/149/149071.png',NOSB='Falta pegar tu Project URL de Supabase en el archivo';
+let parches=[],filter='todo',me=null,uid=null,lmap=null,lg=null,radarOn=true,curP=null,groups=[],last='';
+const toast=(m,i)=>showToast(m,i||'fa-circle-info');
+const hv=(a,b,c,d)=>{const r=x=>x*Math.PI/180;return 12742*Math.asin(Math.sqrt(Math.sin(r(c-a)/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(r(d-b)/2)**2))};
+const dist=p=>me&&p.lat!=null?hv(me.lat,me.lng,p.lat,p.lng):null;
+const fmt=d=>d==null?'':d<1?Math.round(d*1000)+' m':d.toFixed(1)+' km';
+const rank=p=>p.fuegos+(Date.now()-new Date(p.created_at||0)<36e5?50:0);
+
+/* --- almacenamiento local (solo chats, hasta la siguiente entrega) --- */
+const idb=new Promise(r=>{try{const q=indexedDB.open('parchate_local',1);q.onupgradeneeded=()=>q.result.createObjectStore('kv');q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)}catch(e){r(null)}});
+const kget=async k=>{const d=await idb;return d?new Promise(r=>{const q=d.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>r(q.result);q.onerror=()=>r()}):undefined};
+const kset=async(k,x)=>{const d=await idb;if(d)d.transaction('kv','readwrite').objectStore('kv').put(x,k)};
+
+/* --- fotos: se comprimen SIEMPRE antes de subir (máx 1080 px, JPEG ≤ 300 KB) --- */
+async function compress(file,max){const bm=await createImageBitmap(file),s=Math.min(1,max/Math.max(bm.width,bm.height)),c=document.createElement('canvas');
+ c.width=Math.round(bm.width*s);c.height=Math.round(bm.height*s);c.getContext('2d').drawImage(bm,0,0,c.width,c.height);
+ let q=.72,b;do{b=await new Promise(r=>c.toBlob(r,'image/jpeg',q));q-=.1}while(b.size>3e5&&q>.3);return b}
+async function upload(file,max){if(!sb||!uid)throw 0;const b=await compress(file,max||1080),path=`${uid}/${Date.now()}.jpg`;
+ const {error}=await sb.storage.from('fotos').upload(path,b,{contentType:'image/jpeg'});if(error)throw error;return sb.storage.from('fotos').getPublicUrl(path).data.publicUrl}
+
+/* --- feed TOP FUEGO (todos los eventos) --- */
+const B='py-2 rounded-xl text-[11px] font-bold';
+const card=p=>`<div class="bg-[#1f1635] border border-[#3b2d63] rounded-2xl p-4 shadow-xl">
+<div class="flex justify-between items-center mb-1.5"><span class="bg-purple-500/20 text-purple-300 border border-purple-500/40 px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase">${esc(p.tag||'PARCHE')}</span><div class="bg-[#2d234a] border border-purple-900/60 px-2.5 py-1 rounded-xl text-xs font-bold text-orange-400">🔥 ${p.fuegos}</div></div>
+<h3 class="font-bold text-base text-white leading-snug">${esc(p.title)}</h3>
+<p class="text-[11px] text-gray-400 mt-0.5 mb-2 flex justify-between"><span><i class="fa-solid fa-location-dot text-pink-500 mr-1.5"></i>${esc(p.zone||'Medellín')}</span><span class="text-pink-400 font-bold">${fmt(dist(p))}</span></p>
+<div class="relative rounded-2xl overflow-hidden bg-black/40 h-44 mb-3 border border-purple-900/30">${p.img?`<img src="${esc(p.img)}" loading="lazy" class="w-full h-full object-cover">`:''}<button data-act="ubicar" data-id="${p.id}" class="absolute top-2.5 right-2.5 bg-emerald-600/90 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-xl shadow-lg"><i class="fa-solid fa-map-location-dot"></i> Ubicar</button></div>
+<div class="grid grid-cols-3 gap-2"><button data-act="fuego" data-id="${p.id}" class="bg-gradient-to-r from-orange-500 to-amber-600 text-white ${B}">🔥 A fuego</button><button data-act="opino" data-id="${p.id}" class="bg-[#2d234a] border border-purple-500/30 text-white ${B}">💬 Opino</button><button data-act="share" data-id="${p.id}" class="bg-[#2d234a] border border-purple-500/30 text-white ${B}">🔄 x2</button></div></div>`;
+const mini=p=>`<div class="bg-[#1f1635] border border-purple-500/30 rounded-xl p-2.5 mb-1.5"><div class="flex justify-between gap-2"><div class="min-w-0"><b class="text-white text-xs block">${esc(p.title)}</b><span class="text-[10px] text-gray-400">📍 ${esc(p.zone||'')} ${fmt(dist(p))}</span></div><span class="text-orange-400 font-bold text-xs">🔥 ${p.fuegos}</span></div>
+<div class="flex gap-2 mt-1.5"><button data-act="fuego" data-id="${p.id}" class="flex-1 bg-orange-600/80 text-white py-1 rounded-lg text-[10px] font-bold">🔥 A fuego</button><button data-act="ubicar" data-id="${p.id}" class="flex-1 bg-emerald-600/80 text-white py-1 rounded-lg text-[10px] font-bold">📍 Ubicar</button></div></div>`;
+function renderFeed(){const c=document.getElementById('dynamicParchesContainer');if(!c)return;
+ const l=parches.filter(p=>filter==='todo'||(filter==='cerca'?(dist(p)??9)<=1:(p.cat||[]).includes(filter))).sort((a,b)=>rank(b)-rank(a));
+ c.innerHTML=l.length?l.map(card).join(''):'<p class="text-center text-xs text-gray-500 py-8">No hay parches en este filtro todavía ✨</p>'}
+window.filterFeed=function(t){filter=t;['todo','cerca','locales','cafes','rumba'].forEach(k=>{const b=document.getElementById('filter-'+k);if(b)b.className=(k===t?'bg-pink-600 text-white font-bold shadow':'bg-[#1f1635] text-purple-300 border border-purple-900/50 font-medium')+' px-3 py-1.5 rounded-xl whitespace-nowrap'});renderFeed()};
+const seed=()=>[...document.querySelectorAll('#dynamicParchesContainer > [id^="card-"]')].map(c=>({id:'p'+c.id.slice(5),tag:c.querySelector('span').textContent.trim(),title:c.querySelector('h3').textContent.trim(),zone:(c.querySelector('p span')?.textContent||'').trim(),cat:(c.dataset.category||'').split(' '),img:c.querySelector('img')?.src||'',fuegos:parseInt(c.querySelector('[id^="count-"]')?.textContent)||0}));
+async function load(){if(!sb)return;const {data,error}=await sb.from('parches').select('*');if(error)return toast('No pude cargar los parches','fa-triangle-exclamation');parches=data;renderFeed();drawRadar();if(lmap)drawMap()}
+
+/* --- acciones --- */
+const bump=(id,n)=>{const p=parches.find(x=>x.id===id);if(p){p.fuegos+=n;renderFeed()}};
+async function fuego(id){const {error}=await sb.from('fuegos').insert({parche_id:id,user_id:uid});if(error)return toast(error.code==='23505'?'Ya le diste fuego a este parche':error.message,'fa-fire');bump(id,1);toast('🔥 ¡Le diste a fuego!','fa-fire')}
+async function share(id){const {error}=await sb.from('shares').insert({parche_id:id,user_id:uid});if(error)return toast(error.code==='23505'?'Ya lo compartiste':error.message,'fa-retweet');
+ const f=await sb.from('fuegos').insert({parche_id:id,user_id:uid});if(!f.error)bump(id,1);toast('¡Parche republicado! 🔄 +🔥','fa-retweet')}
+async function opino(id){curP=id;document.getElementById('opinoTitle').innerText=parches.find(p=>p.id===id).title;document.getElementById('opinoModal').classList.remove('hidden');drawOpinos()}
+async function drawOpinos(){const {data}=await sb.from('opinos').select('id,text,user_id').eq('parche_id',curP).order('created_at'),nm={};
+ if(data?.length){const r=await sb.from('profiles').select('id,name').in('id',[...new Set(data.map(o=>o.user_id))]);(r.data||[]).forEach(x=>nm[x.id]=x.name)}
+ document.getElementById('opinoMessages').innerHTML=(data||[]).map(o=>`<div class="bg-[#2d234a] p-2.5 rounded-xl border border-purple-500/30"><span class="font-bold text-pink-400 block mb-0.5 text-[10px]">${esc(nm[o.user_id]||'Parchero')}</span>${esc(o.text)}</div>`).join('')||'<p class="text-gray-500 text-center">Sé el primero en opinar 💬</p>'}
+window.sendOpino=async function(){const i=document.getElementById('opinoInput'),t=i&&i.value.trim();if(!t||!curP||!uid||!sb)return;
+ const {error}=await sb.from('opinos').insert({parche_id:curP,user_id:uid,text:t});if(error)return toast(error.message,'fa-triangle-exclamation');i.value='';drawOpinos()};
+window.submitNewParche=async function(){if(!sb)return toast(NOSB,'fa-triangle-exclamation');if(!uid){closeCreateModal();return openAuthModal()}
+ const title=v('newParcheName'),zone=v('newParcheZone');if(!title)return;if(!me)return toast('Activa tu ubicación para ubicar el parche','fa-location-crosshairs');
+ const n=norm(title+' '+zone),cat=['locales'];if(/cafe|tardeo/.test(n))cat.push('cafes');if(/rumba|bar|disco|trago|coctel|fiesta/.test(n))cat.push('rumba');
+ let img=null;const f=document.getElementById('newParcheImg')?.files[0];
+ try{if(f){toast('Comprimiendo y subiendo foto…','fa-image');img=await upload(f)}}catch(e){return toast('No pude subir la foto','fa-triangle-exclamation')}
+ const {error}=await sb.from('parches').insert({title,zone:zone||'Medellín',cat,lat:me.lat,lng:me.lng,img,author:uid,tag:'NUEVO ✨'});
+ if(error)return toast(error.message,'fa-triangle-exclamation');
+ closeCreateModal();['newParcheName','newParcheZone','newParcheImg'].forEach(i=>{const e=document.getElementById(i);if(e)e.value=''});filterFeed('todo');load();toast('¡Parche creado!','fa-check')};
+const tpu=window.triggerPhotoUpload;window.triggerPhotoUpload=function(t){return t==='feed'?openCreateModal():tpu&&tpu(t)};
+
+/* --- sesión real --- */
+window.registerBriefUser=async function(){if(!sb)return toast(NOSB,'fa-triangle-exclamation');
+ const name=v('regNameInput'),email=v('regEmailInput'),pass=document.getElementById('regPassInput')?.value||'';
+ if(!email||pass.length<6)return toast('Escribe tu correo y una contraseña de 6+ caracteres','fa-triangle-exclamation');
+ let r=await sb.auth.signInWithPassword({email,password:pass});
+ if(r.error){if(!name)return toast('Para crear tu cuenta escribe también tu nombre','fa-user');
+  r=await sb.auth.signUp({email,password:pass,options:{data:{name}}});
+  if(r.error)return toast(r.error.message,'fa-triangle-exclamation');
+  if(!r.data.session)return toast('Revisa tu correo para confirmar la cuenta','fa-envelope')}};
+window.loginWithGoogle=async function(){if(!sb)return toast(NOSB,'fa-triangle-exclamation');const {error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.href.split('#')[0]}});if(error)toast('Google aún no está activado en Supabase','fa-triangle-exclamation')};
+async function onSession(s){uid=s?.user?.id||null;
+ if(!uid){currentUser={isGuest:true,name:'Invitado',role:'Invitado',email:'',avatar:AV};updateUserUI();return drawRadar()}
+ const {data}=await sb.from('profiles').select('name,avatar,role,visible').eq('id',uid).single();
+ currentUser={isGuest:false,id:uid,name:data?.name||'Parchero',role:data?.role||'Miembro',email:s.user.email,avatar:data?.avatar||AV};
+ radarOn=data?.visible!==false;updateUserUI();closeAuthModal();pushLoc();drawRadar()}
+const elo=window.executeLogout;window.executeLogout=function(){elo&&elo();if(sb)sb.auth.signOut()};
+const edl=window.executeDeleteAccount;window.executeDeleteAccount=async function(){edl&&edl();if(sb&&uid){await sb.from('profiles').update({visible:false,lat:null,lng:null}).eq('id',uid);await sb.auth.signOut()}};
+const spi=window.saveProfileInfo;window.saveProfileInfo=function(){spi&&spi();if(sb&&uid)sb.from('profiles').update({name:currentUser.name,role:currentUser.role}).eq('id',uid)};
+window.updateProfilePhoto=async function(e){const f=e.target.files[0];if(!f||!uid)return;
+ try{const url=await upload(f,256);await sb.from('profiles').update({avatar:url}).eq('id',uid);currentUser.avatar=url;updateUserUI();toast('Foto actualizada','fa-camera')}catch(x){toast('No pude subir la foto','fa-triangle-exclamation')}};
+
+/* --- ubicación y radar (máx. 1 km) --- */
+async function pushLoc(){if(sb&&uid&&me&&radarOn)await sb.from('profiles').update({lat:me.lat,lng:me.lng,updated_at:new Date().toISOString()}).eq('id',uid)}
+function locate(){if(!navigator.geolocation)return;navigator.geolocation.getCurrentPosition(p=>{me={lat:p.coords.latitude,lng:p.coords.longitude};renderFeed();pushLoc();drawRadar();if(lmap)drawMap()},
+ ()=>toast('Activa la ubicación para ver parches y personas cerca','fa-location-crosshairs'),{enableHighAccuracy:true,timeout:15000,maximumAge:30000})}
+async function drawRadar(){const c=document.getElementById('radarCarousel');if(!c)return;
+ const km=Math.min(1,parseFloat(document.getElementById('radarKmSlider')?.value||1)),txt=km<1?Math.round(km*1000)+' m':'1 km',lab=document.getElementById('rangeKmValueDisplay');if(lab)lab.innerText=txt;
+ let people=[];
+ if(!me)c.innerHTML='<div class="text-[11px] text-gray-400 py-2">Activa tu ubicación para ver el radar.</div>';
+ else if(!uid||!sb)c.innerHTML='<div class="text-[11px] text-gray-400 py-2">Regístrate para ver personas cerca.</div>';
+ else{const {data}=await sb.rpc('nearby_people',{my_lat:me.lat,my_lng:me.lng,radius_km:km});people=data||[];
+  c.innerHTML=people.length?people.map(p=>`<div class="flex flex-col items-center bg-[#1f1635] border border-purple-900/50 p-2.5 rounded-2xl min-w-[85px]"><img src="${esc(p.avatar||AV)}" class="w-12 h-12 rounded-full object-cover border-2 border-pink-500 mb-1"><span class="font-bold text-[11px] text-white truncate w-20 text-center">${esc(p.name)}</span><span class="text-[9px] text-pink-400 font-bold">${fmt(Number(p.distance_km))}</span></div>`).join(''):`<div class="text-[11px] text-gray-400 py-2">No hay personas a menos de ${txt}.</div>`}
+ const n=document.getElementById('radarCountNum');if(n)n.innerText=people.length;
+ const ev=document.getElementById('radarEventsList');if(ev){const l=me?parches.filter(p=>(dist(p)??9)<=km).sort((a,b)=>dist(a)-dist(b)):[];ev.innerHTML=l.length?l.map(mini).join(''):`<div class="text-[11px] text-gray-400 py-2">No hay parches a menos de ${txt}.</div>`}}
+window.updateRadarRange=drawRadar;
+window.toggleRadarActivos=async function(){radarOn=!radarOn;if(sb&&uid){await sb.from('profiles').update({visible:radarOn}).eq('id',uid);if(radarOn)pushLoc()}toast(radarOn?'Apareces en el radar':'Saliste del radar: nadie te ve','fa-satellite-dish')};
+
+/* --- mapa (OpenStreetMap) --- */
+function drawMap(){const el=document.getElementById('map');if(!window.L||!el)return;
+ if(!lmap){lmap=L.map(el).setView([6.2442,-75.5812],13);L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(lmap);lg=L.layerGroup().addTo(lmap)}
+ lmap.invalidateSize();lg.clearLayers();
+ parches.filter(p=>p.lat!=null).forEach(p=>L.circleMarker([p.lat,p.lng],{radius:9,color:'#ec4899',fillColor:'#ec4899',fillOpacity:.8}).addTo(lg).bindPopup(`<b>${esc(p.title)}</b><br>🔥 ${p.fuegos}`));
+ if(me){L.circleMarker([me.lat,me.lng],{radius:7,color:'#38bdf8',fillColor:'#38bdf8',fillOpacity:1}).addTo(lg).bindPopup('Tú estás aquí');if(!lmap._c){lmap.setView([me.lat,me.lng],15);lmap._c=1}}}
+const osv=window.switchFeedView;window.switchFeedView=function(x){osv(x);if(x==='mapa')setTimeout(drawMap,60)};
+
+/* --- buscador: muestra parches (y Gemini opcional) --- */
+const SYN=[['rumba','fiesta','bar','trago','tragos','coctel','cocteles','discoteca','baile','noche','rumbear'],['cafe','cafes','cafeteria','desayuno'],['tardeo','tarde','atardecer','vista','vistas','cena']];
+const STOP=new Set('que hay top hoy en el la los las de del un una para donde quiero algo con y o por me mas bueno buen cual cuales dame dime'.split(' '));
+function search(q){const toks=norm(q).split(/[^a-z0-9ñ]+/).filter(t=>t&&!STOP.has(t));if(!toks.length)return [];
+ return parches.map(p=>{const h=norm([p.title,p.zone,p.tag,...(p.cat||[])].join(' '));let s=0;
+  toks.forEach(t=>{const g=SYN.find(a=>a.includes(t))||[t];if(g.some(w=>h.includes(w)))s+=2;if(t==='cerca'&&(dist(p)??9)<=1)s+=2});return {p,s}}).filter(x=>x.s>0).sort((a,b)=>b.s-a.s||rank(b.p)-rank(a.p)).map(x=>x.p)}
+async function gemini(q){const k=await kget('gkey');if(!k)return null;if(!navigator.onLine)return '📴 Sin internet: solo te muestro los parches.';
+ try{const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':k},
+  body:JSON.stringify({contents:[{parts:[{text:`Eres Parchate AI, guía de planes en Medellín. Responde en español, máximo 3 frases, recomendando SOLO de esta lista: ${parches.map(p=>p.title+' ('+p.zone+', '+p.fuegos+' fuegos)').join('; ')}. Pregunta: ${q}`}]}]})});
+  const j=await r.json();return j.candidates?.[0]?.content?.parts?.[0]?.text||('Gemini: '+(j.error?.message||'sin respuesta'))}catch(e){return 'No pude conectar con Gemini.'}}
+window.askGemini=async function(){const q=v('geminiInput'),box=document.getElementById('geminiResponse');if(!q||!box)return;box.classList.remove('hidden');
+ const r=search(q),show=r.length?r:[...parches].sort((a,b)=>rank(b)-rank(a)).slice(0,3);
+ box.innerHTML=`<div class="mb-2 text-purple-300 font-bold">🔎 ${r.length?r.length+' parche(s) para “'+esc(q)+'”':'Sin coincidencias exactas · los más fuego ahora'}</div>${show.map(mini).join('')}<div id="aiText" class="mt-2 text-gray-200"></div><div class="mt-2 flex gap-4 text-[10px]"><a class="text-pink-400 underline" target="_blank" rel="noopener" href="https://www.google.com/search?q=${encodeURIComponent(q+' Medellín')}">🌐 Buscar en la web</a><button data-act="key" class="text-purple-300 underline">⚙️ Clave Gemini</button></div>`;
+ const t=await gemini(q);if(t){const e=document.getElementById('aiText');if(e)e.innerText='🤖 '+t}};
+
+/* --- grupos locales (chats pasan a Supabase en la siguiente entrega) --- */
+function addGroup(g){document.getElementById('groupsRadarContainer')?.insertAdjacentHTML('beforeend',`<div class="bg-[#1f1635] border border-purple-500/40 rounded-2xl p-3.5 shadow-xl"><div class="flex items-center gap-2.5 mb-2"><div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-pink-600 to-purple-600 flex items-center justify-center text-xl">${esc(g.emoji)}</div><div><h3 class="font-black text-sm text-white">${esc(g.name)}</h3><p class="text-[10px] text-purple-200">${esc(g.desc)}</p></div></div><button data-act="grupo" data-id="${g.id}" class="w-full bg-purple-600 text-white py-2 rounded-xl text-xs font-bold"><i class="fa-solid fa-comments"></i> Entrar al Chat</button></div>`)}
+const osg=window.submitNewGroup;window.submitNewGroup=function(){const b=new Set(Object.keys(groupChatsStore)),g={name:v('newGroupName'),emoji:v('newGroupEmoji')||'🎉',desc:v('newGroupDesc')||'Parche en Radar'};
+ osg();const id=Object.keys(groupChatsStore).find(k=>!b.has(k));if(id){g.id=id;groups.push(g);kset('groups',groups)}};
+
+document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,id=b.dataset.id,p=parches.find(x=>x.id===id);
+ if(a==='ubicar'&&p)window.open(p.lat!=null?`https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.title+' '+p.zone+' Medellin')}`,'_blank');
+ else if(a==='grupo'){const g=groups.find(x=>x.id===id);if(g)openGroupChat(g.id,g.name+' '+g.emoji)}
+ else if(a==='key'){const k=prompt('Pega tu clave de Gemini (queda solo en este dispositivo). Vacía = quitarla:');if(k!==null){kset('gkey',k.trim());toast(k.trim()?'Clave guardada':'Clave eliminada','fa-key')}}
+ else if(!sb)toast(NOSB,'fa-triangle-exclamation');
+ else if(a==='fuego')requireAuthAction(()=>fuego(id));else if(a==='opino')requireAuthAction(()=>opino(id));else if(a==='share')requireAuthAction(()=>share(id))});
+
+/* --- guardado local de chats y arranque --- */
+const snap=()=>JSON.stringify({g:groupChatsStore,p:privateChatsStore,e:ephemeralPhotosMap});
+addEventListener('offline',()=>toast('Sin internet','fa-wifi'));addEventListener('online',()=>{toast('Conectado','fa-wifi');load()});
+(async function(){
+ const pw=document.getElementById('regEmailInput');if(pw)pw.insertAdjacentHTML('afterend',`<input id="regPassInput" type="password" placeholder="Contraseña (mínimo 6)" class="${pw.className}" style="margin-top:6px">`);
+ document.querySelectorAll('[onclick="enterAsAdminQuick()"]').forEach(x=>x.style.display='none');
+ const z=document.getElementById('newParcheZone');if(z)z.insertAdjacentHTML('afterend','<input id="newParcheImg" type="file" accept="image/*" class="w-full text-[11px] text-gray-300 mt-2">');
+ const sl=document.getElementById('radarKmSlider');if(sl){sl.min=.1;sl.max=1;sl.step=.1;sl.value=1}
+ const s=await kget('state');if(s){const d=JSON.parse(s);Object.assign(groupChatsStore,d.g||{});Object.assign(privateChatsStore,d.p||{});Object.assign(ephemeralPhotosMap,d.e||{})}
+ groups=(await kget('groups'))||[];groups.forEach(g=>{groupChatsStore[g.id]=groupChatsStore[g.id]||[];addGroup(g)});
+ parches=seed();renderFeed();last=snap();setInterval(()=>{const n=snap();if(n!==last){last=n;kset('state',n)}},1500);
+ if(!sb){toast(NOSB,'fa-triangle-exclamation');return}
+ sb.auth.onAuthStateChange((_e,s)=>setTimeout(()=>onSession(s),0));
+ await load();locate();setInterval(locate,6e4);
+ let t;const deb=()=>{clearTimeout(t);t=setTimeout(load,800)};
+ sb.channel('pub').on('postgres_changes',{event:'*',schema:'public',table:'parches'},deb).subscribe();
+})();
+})();
+</script>
+
 </body>
 </html>
