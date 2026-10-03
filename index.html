@@ -64,6 +64,7 @@
             display: block;
         }
     </style>
+<link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#18122b"><link rel="apple-touch-icon" href="/icon-192.png"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Párchate">
 </head>
 <body class="bg-[#0f0c1b] text-white flex flex-col min-h-screen selection:bg-pink-500 selection:text-white" onclick="closeAllDropdowns(event)">
 
@@ -1734,7 +1735,7 @@ const SB_URL='https://ofqdizboaexkjjhwtmgs.supabase.co';
 const SB_KEY='sb_publishable_pfLexW8EDmF9-_SRjaiKWQ_y16Yar5f';
 (function(){
 'use strict';
-const sb=/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(SB_URL)&&window.supabase?window.supabase.createClient(SB_URL,SB_KEY):null;
+const sb=/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(SB_URL)&&window.supabase?window.supabase.createClient(SB_URL,SB_KEY,{auth:{flowType:(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform())?'pkce':'implicit'}}):null;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const norm=s=>String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 const v=id=>(document.getElementById(id)?.value||'').trim();
@@ -1744,7 +1745,7 @@ const toast=(m,i)=>showToast(m,i||'fa-circle-info');
 const hv=(a,b,c,d)=>{const r=x=>x*Math.PI/180;return 12742*Math.asin(Math.sqrt(Math.sin(r(c-a)/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(r(d-b)/2)**2))};
 const dist=p=>me&&p.lat!=null?hv(me.lat,me.lng,p.lat,p.lng):null;
 const fmt=d=>d==null?'':d<1?Math.round(d*1000)+' m':d.toFixed(1)+' km';
-const rank=p=>p.fuegos+(Date.now()-new Date(p.created_at||0)<36e5?50:0);
+const myF=new Set();let fsMap={};const rank=p=>p.fuegos+(fsMap[p.id]?30:0)+(Date.now()-new Date(p.created_at||0)<36e5?50:0);
 
 /* --- almacenamiento local (solo chats, hasta la siguiente entrega) --- */
 const idb=new Promise(r=>{try{const q=indexedDB.open('parchate_local',1);q.onupgradeneeded=()=>q.result.createObjectStore('kv');q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)}catch(e){r(null)}});
@@ -1752,20 +1753,23 @@ const kget=async k=>{const d=await idb;return d?new Promise(r=>{const q=d.transa
 const kset=async(k,x)=>{const d=await idb;if(d)d.transaction('kv','readwrite').objectStore('kv').put(x,k)};
 
 /* --- fotos: se comprimen SIEMPRE antes de subir (máx 1080 px, JPEG ≤ 300 KB) --- */
-async function compress(file,max){const bm=await createImageBitmap(file),s=Math.min(1,max/Math.max(bm.width,bm.height)),c=document.createElement('canvas');
- c.width=Math.round(bm.width*s);c.height=Math.round(bm.height*s);c.getContext('2d').drawImage(bm,0,0,c.width,c.height);
- let q=.72,b;do{b=await new Promise(r=>c.toBlob(r,'image/jpeg',q));q-=.1}while(b.size>3e5&&q>.3);return b}
-async function upload(file,max){if(!sb||!uid)throw 0;const b=await compress(file,max||1080),path=`${uid}/${Date.now()}.jpg`;
- const {error}=await sb.storage.from('fotos').upload(path,b,{contentType:'image/jpeg'});if(error)throw error;return sb.storage.from('fotos').getPublicUrl(path).data.publicUrl}
+async function compress(file,max){if(!file.type||!file.type.startsWith('image/'))throw new Error('solo imágenes');if(file.size>15e6)throw new Error('muy grande');
+ const bm=await createImageBitmap(file),s=Math.min(1,max/Math.max(bm.width,bm.height)),c=document.createElement('canvas');c.width=Math.round(bm.width*s);c.height=Math.round(bm.height*s);
+ const x=c.getContext('2d'),enc=(t,q)=>new Promise(r=>c.toBlob(r,t,q));
+ if(/png|webp|gif/.test(file.type)){x.drawImage(bm,0,0,c.width,c.height);let q=.8,b;do{b=await enc('image/webp',q);q-=.1}while(b&&b.type==='image/webp'&&b.size>2e5&&q>.3);if(b&&b.type==='image/webp')return b}
+ x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(bm,0,0,c.width,c.height);
+ let q=.72,b;do{b=await enc('image/jpeg',q);q-=.1}while(b.size>2e5&&q>.3);return b}
+async function upload(file,max,cache){if(!sb||!uid)throw 0;const b=await compress(file,max||1080),path=`${uid}/${Date.now()}.${b.type==='image/webp'?'webp':'jpg'}`;
+ const {error}=await sb.storage.from('fotos').upload(path,b,{contentType:b.type,cacheControl:cache||'31536000'});if(error)throw error;return sb.storage.from('fotos').getPublicUrl(path).data.publicUrl}
 
 /* --- feed TOP FUEGO (todos los eventos) --- */
 const B='py-2 rounded-xl text-[11px] font-bold';
 const card=p=>`<div class="bg-[#1f1635] border border-[#3b2d63] rounded-2xl p-4 shadow-xl">
-<div class="flex justify-between items-center mb-1.5"><span class="bg-purple-500/20 text-purple-300 border border-purple-500/40 px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase">${esc(p.tag||'PARCHE')}</span><div class="bg-[#2d234a] border border-purple-900/60 px-2.5 py-1 rounded-xl text-xs font-bold text-orange-400">🔥 ${p.fuegos}</div></div>
-<h3 class="font-bold text-base text-white leading-snug">${esc(p.title)}</h3>
-<p class="text-[11px] text-gray-400 mt-0.5 mb-2 flex justify-between"><span><i class="fa-solid fa-location-dot text-pink-500 mr-1.5"></i>${esc(p.zone||'Medellín')}</span><span class="text-pink-400 font-bold">${fmt(dist(p))}</span></p>
+<div class="flex justify-between items-center mb-1.5"><span class="bg-purple-500/20 text-purple-300 border border-purple-500/40 px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase">${esc(p.tag||'PARCHE')}</span><div class="bg-[#2d234a] border border-purple-900/60 px-2.5 py-1 rounded-xl text-xs font-bold text-orange-400">🔥 ${p.fuegos} <span class="text-[10px] font-medium text-orange-200/80">van</span></div></div>
+${fsMap[p.id]?`<div class="text-[10px] font-bold text-emerald-300 mb-1">🔄 Lo compartió ${esc(fsMap[p.id].slice(0,2).join(', '))}</div>`:''}<h3 class="font-bold text-base text-white leading-snug">${esc(p.title)}</h3>
+<p class="text-[11px] text-gray-400 mt-0.5 mb-2 flex justify-between"><span><i class="fa-solid fa-location-dot text-pink-500 mr-1.5"></i>${esc(p.zone||'Medellín')}</span><span class="text-pink-400 font-bold">${fmt(dist(p))}</span></p>${p.expires_at?`<div class="flex items-center justify-between mb-2"><span data-exp="${p.expires_at}" class="text-[10px] font-bold text-amber-300">${tfmt(p.expires_at)}</span>${p.author&&p.author===uid?`<button data-act="renew" data-id="${p.id}" class="text-[10px] font-bold text-emerald-300 underline">🔁 Renovar tiempo</button>`:''}</div>`:''}
 <div class="relative rounded-2xl overflow-hidden bg-black/40 h-44 mb-3 border border-purple-900/30">${p.img?`<img src="${esc(p.img)}" loading="lazy" class="w-full h-full object-cover">`:''}<button data-act="ubicar" data-id="${p.id}" class="absolute top-2.5 right-2.5 bg-emerald-600/90 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-xl shadow-lg"><i class="fa-solid fa-map-location-dot"></i> Ubicar</button><button data-act="repp" data-id="${p.id}" title="Reportar" class="absolute top-2.5 left-2.5 bg-black/50 text-white text-[10px] px-2 py-1.5 rounded-xl">🚩</button></div>
-<div class="grid grid-cols-3 gap-2"><button data-act="fuego" data-id="${p.id}" class="bg-gradient-to-r from-orange-500 to-amber-600 text-white ${B}">🔥 A fuego</button><button data-act="opino" data-id="${p.id}" class="bg-[#2d234a] border border-purple-500/30 text-white ${B}">💬 Opino</button><button data-act="share" data-id="${p.id}" class="bg-[#2d234a] border border-purple-500/30 text-white ${B}">🔄 x2</button></div></div>`;
+<div class="grid grid-cols-3 gap-2"><button data-act="fuego" data-id="${p.id}" class="${myF.has(p.id)?'bg-emerald-600':'bg-gradient-to-r from-orange-500 to-amber-600'} text-white ${B}">${myF.has(p.id)?'✅ Ya voy':'🔥 A fuego'}</button><button data-act="opino" data-id="${p.id}" class="bg-[#2d234a] border border-purple-500/30 text-white ${B}">💬 Opino</button><button data-act="share" data-id="${p.id}" class="bg-[#2d234a] border border-purple-500/30 text-white ${B}">🔄 x2</button></div></div>`;
 const mini=p=>`<div class="bg-[#1f1635] border border-purple-500/30 rounded-xl p-2.5 mb-1.5"><div class="flex justify-between gap-2"><div class="min-w-0"><b class="text-white text-xs block">${esc(p.title)}</b><span class="text-[10px] text-gray-400">📍 ${esc(p.zone||'')} ${fmt(dist(p))}</span></div><span class="text-orange-400 font-bold text-xs">🔥 ${p.fuegos}</span></div>
 <div class="flex gap-2 mt-1.5"><button data-act="fuego" data-id="${p.id}" class="flex-1 bg-orange-600/80 text-white py-1 rounded-lg text-[10px] font-bold">🔥 A fuego</button><button data-act="ubicar" data-id="${p.id}" class="flex-1 bg-emerald-600/80 text-white py-1 rounded-lg text-[10px] font-bold">📍 Ubicar</button></div></div>`;
 function renderFeed(){const c=document.getElementById('dynamicParchesContainer');if(!c)return;
@@ -1773,13 +1777,19 @@ function renderFeed(){const c=document.getElementById('dynamicParchesContainer')
  c.innerHTML=l.length?l.map(card).join(''):'<p class="text-center text-xs text-gray-500 py-8">No hay parches en este filtro todavía ✨</p>'}
 window.filterFeed=function(t){filter=t;['todo','cerca','locales','cafes','rumba'].forEach(k=>{const b=document.getElementById('filter-'+k);if(b)b.className=(k===t?'bg-pink-600 text-white font-bold shadow':'bg-[#1f1635] text-purple-300 border border-purple-900/50 font-medium')+' px-3 py-1.5 rounded-xl whitespace-nowrap'});renderFeed()};
 const seed=()=>[...document.querySelectorAll('#dynamicParchesContainer > [id^="card-"]')].map(c=>({id:'p'+c.id.slice(5),tag:c.querySelector('span').textContent.trim(),title:c.querySelector('h3').textContent.trim(),zone:(c.querySelector('p span')?.textContent||'').trim(),cat:(c.dataset.category||'').split(' '),img:c.querySelector('img')?.src||'',fuegos:parseInt(c.querySelector('[id^="count-"]')?.textContent)||0}));
-async function load(){if(!sb)return;const {data,error}=await sb.from('parches').select('*');if(error)return toast('No pude cargar los parches','fa-triangle-exclamation');parches=data;renderFeed();drawRadar();if(lmap)drawMap()}
+async function load(){if(!sb)return;const cols='id,title,zone,tag,cat,lat,lng,img,author,fuegos,created_at,expires_at',T=()=>sb.from('parches').select(cols);
+ const qs=[T().order('fuegos',{ascending:false}).limit(40),T().order('created_at',{ascending:false}).limit(20)];
+ if(me){const d=.0095,dl=d/Math.max(.2,Math.cos(me.lat*Math.PI/180));qs.push(T().gte('lat',me.lat-d).lte('lat',me.lat+d).gte('lng',me.lng-dl).lte('lng',me.lng+dl).limit(100))}
+ const rs=await Promise.all(qs);if(rs.some(r=>r.error))return toast('No pude cargar los parches','fa-triangle-exclamation');
+ const m=new Map();rs.forEach(r=>(r.data||[]).forEach(p=>m.set(p.id,p)));parches=[...m.values()].filter(keep);renderFeed();drawRadar();if(lmap)drawMap()}
 
 /* --- acciones --- */
 const bump=(id,n)=>{const p=parches.find(x=>x.id===id);if(p){p.fuegos+=n;renderFeed()}};
-async function fuego(id){const {error}=await sb.from('fuegos').insert({parche_id:id,user_id:uid});if(error)return toast(error.code==='23505'?'Ya le diste fuego a este parche':error.message,'fa-fire');bump(id,1);toast('🔥 ¡Le diste a fuego!','fa-fire')}
+async function fuego(id){if(myF.has(id)){const {error}=await sb.from('fuegos').delete().eq('parche_id',id).eq('user_id',uid);if(error)return toast(error.message,'fa-triangle-exclamation');myF.delete(id);bump(id,-1);return toast('Listo, ya no vas a este parche','fa-fire')}
+ const {error}=await sb.from('fuegos').insert({parche_id:id,user_id:uid});if(error)return toast(error.code==='23505'?'Ya ibas a este parche':error.message,'fa-fire');myF.add(id);bump(id,1);toast('🔥 ¡Cuentas como asistente!','fa-fire')}
+async function loadMyF(){const r=await sb.from('fuegos').select('parche_id').eq('user_id',uid);(r.data||[]).forEach(x=>myF.add(x.parche_id));renderFeed()}
 async function share(id){const {error}=await sb.from('shares').insert({parche_id:id,user_id:uid});if(error)return toast(error.code==='23505'?'Ya lo compartiste':error.message,'fa-retweet');
- const f=await sb.from('fuegos').insert({parche_id:id,user_id:uid});if(!f.error)bump(id,1);toast('¡Parche republicado! 🔄 +🔥','fa-retweet')}
+ const f=await sb.from('fuegos').insert({parche_id:id,user_id:uid});if(!f.error){myF.add(id);bump(id,1)}toast('¡Parche republicado! 🔄 +🔥','fa-retweet')}
 async function opino(id){curP=id;document.getElementById('opinoTitle').innerText=parches.find(p=>p.id===id).title;document.getElementById('opinoModal').classList.remove('hidden');drawOpinos()}
 async function drawOpinos(){const {data}=await sb.from('opinos').select('id,text,user_id').eq('parche_id',curP).order('created_at'),nm={};
  if(data?.length){const r=await sb.from('profiles').select('id,name').in('id',[...new Set(data.map(o=>o.user_id))]);(r.data||[]).forEach(x=>nm[x.id]=x.name)}
@@ -1787,11 +1797,11 @@ async function drawOpinos(){const {data}=await sb.from('opinos').select('id,text
 window.sendOpino=async function(){const i=document.getElementById('opinoInput'),t=i&&i.value.trim();if(!t||!curP||!uid||!sb)return;
  const {error}=await sb.from('opinos').insert({parche_id:curP,user_id:uid,text:t});if(error)return toast(error.message,'fa-triangle-exclamation');i.value='';drawOpinos()};
 window.submitNewParche=async function(){if(!sb)return toast(NOSB,'fa-triangle-exclamation');if(!uid){closeCreateModal();return openAuthModal()}
- const title=v('newParcheName'),zone=v('newParcheZone');if(!title)return;if(!me)return toast('Activa tu ubicación para ubicar el parche','fa-location-crosshairs');
+ const title=v('newParcheName'),zone=v('newParcheZone');if(!title)return;const loc=pickLoc||me;if(!loc)return toast('Activa tu ubicación o elige el lugar en el mapa','fa-location-crosshairs');
  const n=norm(title+' '+zone),cat=['locales'];if(/cafe|tardeo/.test(n))cat.push('cafes');if(/rumba|bar|disco|trago|coctel|fiesta/.test(n))cat.push('rumba');
  let img=null;const f=document.getElementById('newParcheImg')?.files[0];
- try{if(f){toast('Comprimiendo y subiendo foto…','fa-image');img=await upload(f)}}catch(e){return toast('No pude subir la foto','fa-triangle-exclamation')}
- const {error}=await sb.from('parches').insert({title,zone:zone||'Medellín',cat,lat:me.lat,lng:me.lng,img,author:uid,tag:'NUEVO ✨'});
+ try{if(f){toast('Comprimiendo y subiendo foto…','fa-image');img=await upload(f,900,'86400')}}catch(e){return toast('No pude subir la foto','fa-triangle-exclamation')}
+ const {error}=await sb.from('parches').insert({title,zone:zone||'Medellín',cat,lat:loc.lat,lng:loc.lng,img,author:uid,tag:'NUEVO ✨',expires_at:new Date(Date.now()+(+($('newParcheDur')?.value)||24)*36e5).toISOString()});
  if(error)return toast(error.message,'fa-triangle-exclamation');
  closeCreateModal();['newParcheName','newParcheZone','newParcheImg'].forEach(i=>{const e=document.getElementById(i);if(e)e.value=''});filterFeed('todo');load();toast('¡Parche creado!','fa-check')};
 const tpu=window.triggerPhotoUpload;window.triggerPhotoUpload=function(t){return t==='feed'?openCreateModal():tpu&&tpu(t)};
@@ -1805,29 +1815,31 @@ window.registerBriefUser=async function(){if(!sb)return toast(NOSB,'fa-triangle-
   r=await sb.auth.signUp({email,password:pass,options:{data:{name,age18:true}}});
   if(r.error)return toast(r.error.message,'fa-triangle-exclamation');
   if(!r.data.session)return toast('Revisa tu correo para confirmar la cuenta','fa-envelope')}};
-window.loginWithGoogle=async function(){if(!sb)return toast(NOSB,'fa-triangle-exclamation');if(!$('regAge18')?.checked)return toast('Marca primero la casilla de 18 años o más','fa-user-shield');try{localStorage.setItem('pch_age18','1')}catch(e){}const {error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.href.split('#')[0]}});if(error)toast('Google aún no está activado en Supabase','fa-triangle-exclamation')};
-async function onSession(s){uid=s?.user?.id||null;
+window.loginWithGoogle=async function(){if(!sb)return toast(NOSB,'fa-triangle-exclamation');if(!$('regAge18')?.checked)return toast('Marca primero la casilla de 18 años o más','fa-user-shield');try{localStorage.setItem('pch_age18','1')}catch(e){}if(NATIVE){const r=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:'com.veltrix.parchate://login-callback',skipBrowserRedirect:true}});if(r.error||!r.data||!r.data.url)return toast('No pude abrir Google','fa-triangle-exclamation');return CP('Browser').open({url:r.data.url})}
+ const {error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.href.split('#')[0]}});if(error)toast('Google aún no está activado en Supabase','fa-triangle-exclamation')};
+async function onSession(s){uid=s?.user?.id||null;myF.clear();fr.clear();fsMap={};if(ch){sb.removeChannel(ch);ch=null}unwatchGroup();
  if(!uid){currentUser={isGuest:true,name:'Invitado',role:'Invitado',email:'',avatar:AV};updateUserUI();return drawRadar()}
  const {data}=await sb.from('profiles').select('name,avatar,role,visible').eq('id',uid).single();
  currentUser={isGuest:false,id:uid,name:data?.name||'Parchero',role:data?.role||'Miembro',email:s.user.email,avatar:data?.avatar||AV};
- radarOn=data?.visible!==false;try{if(!s.user.user_metadata?.age18&&localStorage.getItem('pch_age18'))sb.auth.updateUser({data:{age18:true}})}catch(e){}updateUserUI();closeAuthModal();pushLoc();drawRadar();loadGroups();loadChats();subscribe()}
-const elo=window.executeLogout;window.executeLogout=function(){elo&&elo();if(sb)sb.auth.signOut()};
-const edl=window.executeDeleteAccount;window.executeDeleteAccount=async function(){edl&&edl();if(sb&&uid){await sb.from('profiles').update({visible:false,lat:null,lng:null}).eq('id',uid);await sb.auth.signOut()}};
+ radarOn=data?.visible!==false;try{if(!s.user.user_metadata?.age18&&localStorage.getItem('pch_age18'))sb.auth.updateUser({data:{age18:true}})}catch(e){}updateUserUI();closeAuthModal();pushLoc();drawRadar();loadGroups();loadChats();subscribe();loadMyF();loadFr();saveTok();setTimeout(askNotifOnce,4000);const oc=new URLSearchParams(location.search).get('chat');if(oc&&/^[0-9a-f-]{36}$/i.test(oc)){history.replaceState(null,'','/');openChatDetail(oc)}}
+const elo=window.executeLogout;window.executeLogout=function(){elo&&elo();if(sb)pushOff().finally(()=>sb.auth.signOut())};
 const spi=window.saveProfileInfo;window.saveProfileInfo=function(){spi&&spi();if(sb&&uid)sb.from('profiles').update({name:currentUser.name,role:currentUser.role}).eq('id',uid)};
 window.updateProfilePhoto=async function(e){const f=e.target.files[0];if(!f||!uid)return;
  try{const url=await upload(f,256);await sb.from('profiles').update({avatar:url}).eq('id',uid);currentUser.avatar=url;updateUserUI();toast('Foto actualizada','fa-camera')}catch(x){toast('No pude subir la foto','fa-triangle-exclamation')}};
 
 /* --- ubicación y radar (máx. 1 km) --- */
-async function pushLoc(){if(sb&&uid&&me&&radarOn)await sb.from('profiles').update({lat:me.lat,lng:me.lng,updated_at:new Date().toISOString()}).eq('id',uid)}
-function locate(){if(!navigator.geolocation)return;navigator.geolocation.getCurrentPosition(p=>{me={lat:p.coords.latitude,lng:p.coords.longitude};renderFeed();pushLoc();drawRadar();if(lmap)drawMap()},
+let lastPush=0,lastPos=null;
+async function pushLoc(){if(!(sb&&uid&&me&&radarOn))return;if(lastPos&&hv(lastPos.lat,lastPos.lng,me.lat,me.lng)<.05&&Date.now()-lastPush<3e5)return;lastPush=Date.now();lastPos={...me};
+ await sb.from('profiles').update({lat:me.lat,lng:me.lng,updated_at:new Date().toISOString()}).eq('id',uid)}
+function locate(){if(!navigator.geolocation)return;navigator.geolocation.getCurrentPosition(p=>{me={lat:p.coords.latitude,lng:p.coords.longitude};renderFeed();pushLoc().then(drawRadar);if(lmap)drawMap()},
  ()=>toast('Activa la ubicación para ver parches y personas cerca','fa-location-crosshairs'),{enableHighAccuracy:true,timeout:15000,maximumAge:30000})}
-async function drawRadar(){const c=document.getElementById('radarCarousel');if(!c)return;
+async function drawRadar(){const c=document.getElementById('radarCarousel');if(!c||c.offsetParent===null)return;
  const km=Math.min(1,parseFloat(document.getElementById('radarKmSlider')?.value||1)),txt=km<1?Math.round(km*1000)+' m':'1 km',lab=document.getElementById('rangeKmValueDisplay');if(lab)lab.innerText=txt;
  let people=[];
  if(!me)c.innerHTML='<div class="text-[11px] text-gray-400 py-2">Activa tu ubicación para ver el radar.</div>';
  else if(!uid||!sb)c.innerHTML='<div class="text-[11px] text-gray-400 py-2">Regístrate para ver personas cerca.</div>';
  else{const {data}=await sb.rpc('nearby_people',{my_lat:me.lat,my_lng:me.lng,radius_km:km});people=data||[];
-  c.innerHTML=people.length?people.map(p=>`<div data-act="chat" data-id="${p.id}" data-name="${esc(p.name)}" class="flex flex-col items-center bg-[#1f1635] border border-purple-900/50 p-2.5 rounded-2xl min-w-[85px] cursor-pointer"><img src="${esc(p.avatar||AV)}" class="w-12 h-12 rounded-full object-cover border-2 border-pink-500 mb-1"><span class="font-bold text-[11px] text-white truncate w-20 text-center">${esc(p.name)}</span><span class="text-[9px] text-pink-400 font-bold">${fmt(Number(p.distance_km))}</span></div>`).join(''):`<div class="text-[11px] text-gray-400 py-2">No hay personas a menos de ${txt}.</div>`}
+  c.innerHTML=people.length?people.map(p=>`<div data-act="chat" data-id="${p.id}" data-name="${esc(p.name)}" class="flex flex-col items-center bg-[#1f1635] border border-purple-900/50 p-2.5 rounded-2xl min-w-[85px] cursor-pointer"><img src="${esc(p.avatar||AV)}" class="w-12 h-12 rounded-full object-cover border-2 border-pink-500 mb-1"><span class="font-bold text-[11px] text-white truncate w-20 text-center">${esc(p.name)}</span><span class="text-[9px] text-pink-400 font-bold">${fmt(Number(p.distance_km))}</span>${frBtn(p.id)}</div>`).join(''):`<div class="text-[11px] text-gray-400 py-2">No hay personas a menos de ${txt}.</div>`}
  radarPeople=people;const n=document.getElementById('radarCountNum');if(n)n.innerText=people.length;
  const ev=document.getElementById('radarEventsList');if(ev){const l=me?parches.filter(p=>(dist(p)??9)<=km).sort((a,b)=>dist(a)-dist(b)):[];ev.innerHTML=l.length?l.map(mini).join(''):`<div class="text-[11px] text-gray-400 py-2">No hay parches a menos de ${txt}.</div>`}}
 window.updateRadarRange=drawRadar;
@@ -1835,9 +1847,9 @@ window.toggleRadarActivos=async function(){radarOn=!radarOn;if(sb&&uid){await sb
 
 /* --- mapa (OpenStreetMap) --- */
 function drawMap(){const el=document.getElementById('map');if(!window.L||!el)return;
- if(!lmap){lmap=L.map(el).setView([6.2442,-75.5812],13);L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(lmap);lg=L.layerGroup().addTo(lmap)}
+ if(!lmap){lmap=L.map(el).setView([6.2442,-75.5812],13);L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(lmap);lg=L.layerGroup().addTo(lmap);lmap.on('moveend',loadBounds);lmap.on('click',e=>{pickTmp=e.latlng;L.popup().setLatLng(e.latlng).setContent('<button data-act="crearaqui" style="background:#ec4899;color:#fff;border:0;border-radius:10px;padding:6px 10px;font-weight:700">➕ Crear parche aquí</button>').openOn(lmap)})}
  lmap.invalidateSize();lg.clearLayers();
- parches.filter(p=>p.lat!=null).forEach(p=>L.circleMarker([p.lat,p.lng],{radius:9,color:'#ec4899',fillColor:'#ec4899',fillOpacity:.8}).addTo(lg).bindPopup(`<b>${esc(p.title)}</b><br>🔥 ${p.fuegos}`));
+ parches.filter(p=>p.lat!=null&&(!p.expires_at||new Date(p.expires_at)>Date.now())).forEach(p=>L.circleMarker([p.lat,p.lng],{radius:9,color:'#ec4899',fillColor:'#ec4899',fillOpacity:.8}).addTo(lg).bindPopup(`<b>${esc(p.title)}</b><br>${esc(p.zone||'')}<br>🔥 ${p.fuegos} van<br><button data-act="fuego" data-id="${p.id}" style="margin-top:4px;background:#f97316;color:#fff;border:0;border-radius:8px;padding:4px 8px;font-weight:700">🔥 A fuego</button> <button data-act="ubicar" data-id="${p.id}" style="margin-top:4px;background:#059669;color:#fff;border:0;border-radius:8px;padding:4px 8px;font-weight:700">📍 Cómo llegar</button>`));
  if(me){L.circleMarker([me.lat,me.lng],{radius:7,color:'#38bdf8',fillColor:'#38bdf8',fillOpacity:1}).addTo(lg).bindPopup('Tú estás aquí');if(!lmap._c){lmap.setView([me.lat,me.lng],15);lmap._c=1}}}
 const osv=window.switchFeedView;window.switchFeedView=function(x){osv(x);if(x==='mapa')setTimeout(drawMap,60)};
 
@@ -1847,14 +1859,6 @@ const STOP=new Set('que hay top hoy en el la los las de del un una para donde qu
 function search(q){const toks=norm(q).split(/[^a-z0-9ñ]+/).filter(t=>t&&!STOP.has(t));if(!toks.length)return [];
  return parches.map(p=>{const h=norm([p.title,p.zone,p.tag,...(p.cat||[])].join(' '));let s=0;
   toks.forEach(t=>{const g=SYN.find(a=>a.includes(t))||[t];if(g.some(w=>h.includes(w)))s+=2;if(t==='cerca'&&(dist(p)??9)<=1)s+=2});return {p,s}}).filter(x=>x.s>0).sort((a,b)=>b.s-a.s||rank(b.p)-rank(a.p)).map(x=>x.p)}
-async function gemini(q){const k=await kget('gkey');if(!k)return null;if(!navigator.onLine)return '📴 Sin internet: solo te muestro los parches.';
- try{const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':k},
-  body:JSON.stringify({contents:[{parts:[{text:`Eres Parchate AI, guía de planes en Medellín. Responde en español, máximo 3 frases, recomendando SOLO de esta lista: ${parches.map(p=>p.title+' ('+p.zone+', '+p.fuegos+' fuegos)').join('; ')}. Pregunta: ${q}`}]}]})});
-  const j=await r.json();return j.candidates?.[0]?.content?.parts?.[0]?.text||('Gemini: '+(j.error?.message||'sin respuesta'))}catch(e){return 'No pude conectar con Gemini.'}}
-window.askGemini=async function(){const q=v('geminiInput'),box=document.getElementById('geminiResponse');if(!q||!box)return;box.classList.remove('hidden');
- const r=search(q),show=r.length?r:[...parches].sort((a,b)=>rank(b)-rank(a)).slice(0,3);
- box.innerHTML=`<div class="mb-2 text-purple-300 font-bold">🔎 ${r.length?r.length+' parche(s) para “'+esc(q)+'”':'Sin coincidencias exactas · los más fuego ahora'}</div>${show.map(mini).join('')}<div id="aiText" class="mt-2 text-gray-200"></div><div class="mt-2 flex gap-4 text-[10px]"><a class="text-pink-400 underline" target="_blank" rel="noopener" href="https://www.google.com/search?q=${encodeURIComponent(q+' Medellín')}">🌐 Buscar en la web</a><button data-act="key" class="text-purple-300 underline">⚙️ Clave Gemini</button></div>`;
- const t=await gemini(q);if(t){const e=document.getElementById('aiText');if(e)e.innerText='🤖 '+t}};
 
 /* --- chats reales (Supabase) --- */
 let chat=null,names={},viewed=new Set(),radarPeople=[],ch=null;
@@ -1875,7 +1879,7 @@ async function loadMsgs(){const q=sb.from('messages').select('*').order('created
 async function send(text,img,once){if(!chat||!uid)return;const row={sender:uid,text:text?text.slice(0,1000):null,img:img||null,kind:img?'photo':'text',view_once:!!once};
  if(chat.t==='g')row.group_id=chat.id;else row.to_user=chat.id;
  const {data,error}=await sb.from('messages').insert(row).select('*').single();if(error)return toast(error.message,'fa-triangle-exclamation');addMsg(data)}
-window.openGroupChat=async function(gid,title){chat={t:'g',id:DEF[gid]||gid};$('groupChatHeaderTitle').innerText=title;$('groupChatMessages').innerHTML='';$('groupChatModal').classList.remove('hidden');att('groupMessageInput','group');await loadMsgs()};
+window.openGroupChat=async function(gid,title){chat={t:'g',id:DEF[gid]||gid};$('groupChatHeaderTitle').innerText=title;$('groupChatMessages').innerHTML='';$('groupChatModal').classList.remove('hidden');att('groupMessageInput','group');await loadMsgs();watchGroup(chat.id)};
 window.openChatDetail=async function(id,name){await nameFor([id]);chat={t:'p',id};$('chatDetailTitle').innerText='Chat privado con '+(name||names[id]||'Parchero');$('chatDetailMessages').innerHTML='';$('chatDetailModal').classList.remove('hidden');att('chatDetailInput','private');await loadMsgs()};
 window.sendGroupTextMessage=async function(){const i=$('groupMessageInput'),t=i&&i.innerText.trim();if(!t||!chat||chat.t!=='g')return;i.innerHTML='';await send(t)};
 window.sendPrivateMessage=async function(){const i=$('chatDetailInput'),t=i&&i.innerText.trim();if(!t||!chat||chat.t!=='p')return;i.innerHTML='';await send(t)};
@@ -1888,7 +1892,10 @@ window.deleteSelectedMessage=async function(){const id=selectedMessageRef&&selec
 async function onMsg(p){if(!uid)return;if(p.eventType==='DELETE'){$('msg_'+p.old.id)?.remove();return}if(p.eventType!=='INSERT')return;const m=p.new;
  const inChat=chat&&((chat.t==='g'&&m.group_id===chat.id)||(chat.t==='p'&&((m.sender===chat.id&&m.to_user===uid)||(m.sender===uid&&m.to_user===chat.id))));
  await nameFor([m.sender]);if(inChat)addMsg(m);else if(m.to_user===uid){toast('💬 '+(names[m.sender]||'Parchero')+': '+(m.kind==='photo'?'📷 Foto':String(m.text).slice(0,40).replace(/[<>]/g,'')),'fa-comment');loadChats()}}
-function subscribe(){if(ch||!sb)return;ch=sb.channel('chat').on('postgres_changes',{event:'*',schema:'public',table:'messages'},onMsg).on('postgres_changes',{event:'INSERT',schema:'public',table:'groups'},loadGroups).subscribe()}
+function subscribe(){if(ch||!sb)return;ch=sb.channel('priv').on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:`to_user=eq.${uid}`},onMsg).on('postgres_changes',{event:'INSERT',schema:'public',table:'groups'},loadGroups).subscribe()}
+let gch=null;
+function watchGroup(id){unwatchGroup();gch=sb.channel('g'+id).on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:`group_id=eq.${id}`},onMsg).subscribe()}
+function unwatchGroup(){if(gch&&sb){sb.removeChannel(gch)}gch=null}
 async function loadGroups(){if(!sb||!uid)return;const {data}=await sb.from('groups').select('id,name,emoji,descr').order('created_at'),c=$('groupsRadarContainer');if(!c)return;c.querySelectorAll('[data-dyn]').forEach(x=>x.remove());
  (data||[]).filter(g=>!Object.values(DEF).includes(g.id)).forEach(g=>c.insertAdjacentHTML('beforeend',`<div data-dyn class="bg-[#1f1635] border border-purple-500/40 rounded-2xl p-3.5 shadow-xl"><div class="flex items-center gap-2.5 mb-2"><div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-pink-600 to-purple-600 flex items-center justify-center text-xl">${esc(g.emoji)}</div><div><h3 class="font-black text-sm text-white">${esc(g.name)}</h3><p class="text-[10px] text-purple-200">${esc(g.descr)}</p></div></div><button data-act="grupo" data-id="${g.id}" data-name="${esc(g.name+' '+g.emoji)}" class="w-full bg-purple-600 text-white py-2 rounded-xl text-xs font-bold"><i class="fa-solid fa-comments"></i> Entrar al Chat</button></div>`))}
 window.submitNewGroup=async function(){if(!sb||!uid)return;const name=v('newGroupName');if(!name)return;
@@ -1899,9 +1906,10 @@ async function loadChats(){const c=$('chatsListContainer');if(!c)return;
  const {data}=await sb.from('messages').select('sender,to_user,text,kind,created_at').not('to_user','is',null).order('created_at',{ascending:false}).limit(200),last=new Map();
  (data||[]).forEach(m=>{const o=m.sender===uid?m.to_user:m.sender;if(!last.has(o))last.set(o,m)});await nameFor([...last.keys()]);
  c.innerHTML=[...last].map(([id,m])=>`<div class="bg-[#1f1635] border border-purple-900/50 rounded-2xl p-3 flex items-center justify-between gap-2"><div class="min-w-0"><b class="text-sm text-white">${esc(names[id]||'Parchero')}</b><p class="text-[11px] text-gray-400 truncate">${m.kind==='photo'?'📷 Foto':esc(m.text)}</p></div><button data-act="chat" data-id="${id}" data-name="${esc(names[id]||'Parchero')}" class="bg-purple-600 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold">Abrir</button></div>`).join('')||'<p class="text-xs text-gray-400 p-3">Aún no tienes chats. Escríbele a alguien desde el radar 👋</p>'}
-const ost=window.switchTab;window.switchTab=function(t){ost(t);if(t==='tab-chats')loadChats()};
+const ost=window.switchTab;window.switchTab=function(t){ost(t);if(t==='tab-chats')loadChats();if(t==='tab-mapa')setTimeout(drawRadar,80);if(t==='tab-miparche')setTimeout(loadGallery,80)}
+const ocg=window.closeGroupChat;window.closeGroupChat=function(){ocg&&ocg();unwatchGroup()};;
 window.openFullRadarModal=function(){let o=$('fullRadar');if(!o){o=document.createElement('div');o.id='fullRadar';o.className='fixed inset-0 z-[90] bg-black/80 flex items-end justify-center';document.body.appendChild(o)}
- o.innerHTML=`<div class="bg-[#1f1635] w-full max-w-md rounded-t-3xl p-4 max-h-[75vh] overflow-y-auto"><div class="flex justify-between mb-3"><b class="text-white text-sm">Personas cerca (${radarPeople.length})</b><button onclick="document.getElementById('fullRadar').remove()" class="text-gray-400">✕</button></div>${radarPeople.map(p=>`<div class="flex items-center gap-3 mb-2.5"><img src="${esc(p.avatar||AV)}" class="w-10 h-10 rounded-full object-cover border-2 border-pink-500"><div class="flex-1 min-w-0"><b class="text-xs text-white block truncate">${esc(p.name)}</b><span class="text-[10px] text-pink-400">${fmt(Number(p.distance_km))}</span></div><button data-act="chat" data-id="${p.id}" data-name="${esc(p.name)}" class="bg-purple-600 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold">Chatear</button></div>`).join('')||'<p class="text-xs text-gray-400">No hay personas a menos de 1 km ahora mismo.</p>'}</div>`};
+ o.innerHTML=`<div class="bg-[#1f1635] w-full max-w-md rounded-t-3xl p-4 max-h-[75vh] overflow-y-auto"><div class="flex justify-between mb-3"><b class="text-white text-sm">Personas cerca (${radarPeople.length})</b><button onclick="document.getElementById('fullRadar').remove()" class="text-gray-400">✕</button></div>${radarPeople.map(p=>`<div class="flex items-center gap-3 mb-2.5"><img src="${esc(p.avatar||AV)}" class="w-10 h-10 rounded-full object-cover border-2 border-pink-500"><div class="flex-1 min-w-0"><b class="text-xs text-white block truncate">${esc(p.name)}</b><span class="text-[10px] text-pink-400">${fmt(Number(p.distance_km))}</span> ${frBtn(p.id)}</div><button data-act="chat" data-id="${p.id}" data-name="${esc(p.name)}" class="bg-purple-600 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold">Chatear</button></div>`).join('')||'<p class="text-xs text-gray-400">No hay personas a menos de 1 km ahora mismo.</p>'}</div>`};
 async function showBlocked(){const {data}=await sb.from('blocks').select('blocked').eq('blocker',uid),ids=(data||[]).map(x=>x.blocked);await nameFor(ids);
  let o=$('blockedOv');if(!o){o=document.createElement('div');o.id='blockedOv';o.className='fixed inset-0 z-[90] bg-black/80 flex items-end justify-center';document.body.appendChild(o)}
  o.innerHTML=`<div class="bg-[#1f1635] w-full max-w-md rounded-t-3xl p-4 max-h-[75vh] overflow-y-auto"><div class="flex justify-between mb-3"><b class="text-white text-sm">Usuarios bloqueados (${ids.length})</b><button onclick="document.getElementById('blockedOv').remove()" class="text-gray-400">✕</button></div>${ids.map(i=>`<div class="flex items-center justify-between mb-2.5"><b class="text-xs text-white">${esc(names[i]||'Parchero')}</b><button data-act="unblk" data-id="${i}" class="bg-purple-600 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold">Desbloquear</button></div>`).join('')||'<p class="text-xs text-gray-400">No has bloqueado a nadie.</p>'}</div>`}
@@ -1910,7 +1918,138 @@ async function report(x){const reason=(prompt('¿Qué pasó? (acoso, contenido s
  const {error}=await sb.from('reports').insert({reporter:uid,reason,...x});toast(error?'No pude enviar el reporte':'Gracias, revisaremos tu reporte 🚩',error?'fa-triangle-exclamation':'fa-flag')}
 async function block(u){if(!confirm('¿Bloquear a esta persona? No podrán escribirse ni verse en el radar.'))return;const {error}=await sb.from('blocks').insert({blocker:uid,blocked:u});
  if(error&&error.code!=='23505')return toast('No pude bloquear','fa-triangle-exclamation');toast('Persona bloqueada 🚫','fa-ban');if(chat)loadMsgs();loadChats();drawRadar()}
-async function banner(){const inApp=document.referrer.startsWith('android-app://')||matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches;
+/* --- encabezado nuevo, íconos de respaldo y notificaciones push --- */
+const IC={xmark:'✕',comments:'💬',comment:'💬',camera:'📷',image:'🖼️','user-plus':'➕','trash-can':'🗑️',fire:'🔥',clock:'🕒','user-circle':'👤',user:'👤','user-shield':'🛡️','location-dot':'📍','map-location-dot':'📍','location-crosshairs':'🎯',plus:'➕','people-group':'👥',users:'👥','users-viewfinder':'👥',radar:'📡','satellite-dish':'📡',eye:'👁️','ellipsis-vertical':'⋮',broom:'🧹','right-from-bracket':'↪',retweet:'🔄','paper-plane':'➤','circle-info':'ℹ️',bell:'🔔','bell-slash':'🔕','wand-magic-sparkles':'✨','layer-group':'▦','shield-halved':'🛡️','photo-film':'🖼️','triangle-exclamation':'⚠️',copy:'📋',google:'G',lock:'🔒',check:'✔',key:'🔑',wifi:'📶',ban:'🚫',flag:'🚩',envelope:'✉️',star:'⭐'};
+function iconFallback(){const on=()=>{const s=document.createElement('style');s.textContent='.fa-solid::before,.fa-regular::before,.fa-brands::before{font-family:system-ui,"Segoe UI Emoji","Apple Color Emoji",sans-serif!important;font-weight:400!important}'+Object.entries(IC).map(([k,x])=>`.fa-${k}::before{content:"${x}"!important}`).join('');document.head.appendChild(s)};
+ addEventListener('load',()=>{Promise.race([document.fonts.load('900 16px "Font Awesome 6 Free"'),new Promise((_,r)=>setTimeout(r,5000))]).then(f=>{if(!f||!f.length)on()}).catch(on)})}
+function buildHeader(){const h=document.querySelector('header');if(!h)return;
+ if(!$('hdrCss')){const st=document.createElement('style');st.id='hdrCss';st.textContent='.hdr-aurora{position:absolute;inset:0;overflow:hidden;pointer-events:none;background:linear-gradient(120deg,#1a1033,#2a1458,#3b1a6e,#1a1033);background-size:300% 300%;animation:hdrShift 14s ease infinite}.hdr-aurora i{position:absolute;width:150px;height:150px;border-radius:50%;filter:blur(34px);opacity:.55;will-change:transform}.hdr-aurora i:nth-child(1){background:#ec4899;left:-30px;top:-60px;animation:blobA 11s ease-in-out infinite alternate}.hdr-aurora i:nth-child(2){background:#6366f1;right:-30px;top:-50px;animation:blobB 13s ease-in-out infinite alternate}.hdr-aurora i:nth-child(3){background:#a855f7;left:35%;bottom:-90px;animation:blobC 15s ease-in-out infinite alternate}@keyframes hdrShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}@keyframes blobA{to{transform:translate(130px,30px) scale(1.2)}}@keyframes blobB{to{transform:translate(-120px,40px) scale(1.15)}}@keyframes blobC{to{transform:translate(-100px,-20px) scale(1.3)}}@media (prefers-reduced-motion:reduce){.hdr-aurora,.hdr-aurora i{animation:none}}';document.head.appendChild(st)}
+ h.innerHTML=`<div class="hdr-aurora"><i></i><i></i><i></i></div>
+<div class="flex justify-between items-center w-full relative z-10 gap-2">
+<button onclick="requestNotificationPermission()" id="notificationBellBtn" aria-label="Notificaciones" class="relative w-10 h-10 shrink-0 rounded-2xl bg-purple-900/60 border border-purple-500/40 flex items-center justify-center shadow-lg active:scale-95 transition"><svg id="bellSvg" class="animate-pulse" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span id="bellDot" class="hidden absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#18122b]"></span></button>
+<div class="text-center min-w-0"><div class="flex items-center justify-center gap-2"><svg width="30" height="30" viewBox="0 0 24 24"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ec4899"/><stop offset="1" stop-color="#6366f1"/></linearGradient></defs><rect width="24" height="24" rx="7" fill="url(#lg)"/><path d="M12 4.5a5 5 0 0 0-5 5c0 3.6 5 9 5 9s5-5.4 5-9a5 5 0 0 0-5-5z" fill="#fff"/><circle cx="12" cy="9.5" r="1.9" fill="#7c3aed"/></svg><h1 class="text-[22px] leading-none font-black tracking-[0.18em] bg-gradient-to-r from-pink-500 via-purple-400 to-indigo-400 bg-clip-text text-transparent">PÁRCHATE</h1></div><p class="text-[10px] font-bold text-purple-300 tracking-wider mt-1">Medellín · <span class="text-pink-400">RADAR &amp; PARCHES</span></p></div>
+<button onclick="checkAuthAndOpenProfile()" id="headerUserBadge" class="shrink-0 flex items-center gap-1.5 h-10 pl-1.5 pr-3 rounded-2xl bg-purple-900/60 border border-purple-500/40 shadow-lg active:scale-95 transition"><img id="headerAvatar" alt="" class="hidden w-7 h-7 rounded-full object-cover bg-purple-800"><svg id="headerUserIcon" class="ml-1" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f9a8d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span id="headerStatusText" class="text-xs font-bold text-pink-200 max-w-[80px] truncate">Entrar</span></button></div>`;refreshHeader()}
+function refreshHeader(){const img=$('headerAvatar'),ic=$('headerUserIcon');if(!img||!ic)return;const has=currentUser&&!currentUser.isGuest&&currentUser.avatar&&!/flaticon/.test(currentUser.avatar);
+ img.classList.toggle('hidden',!has);ic.classList.toggle('hidden',!!has);if(has)img.src=currentUser.avatar;const t=$('headerStatusText');if(t&&currentUser&&currentUser.isGuest)t.textContent='Entrar'}
+const uuu=window.updateUserUI;window.updateUserUI=function(){uuu&&uuu();refreshHeader()};
+/* notificaciones push (segundo plano) */
+let swReg=null;
+const u8=s=>{const r=atob((s+'='.repeat((4-s.length%4)%4)).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from([...r].map(c=>c.charCodeAt(0)))};
+async function initSW(){if(NATIVE){nativeInit();return}if(!('serviceWorker' in navigator))return;try{swReg=await navigator.serviceWorker.register('/sw.js');navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.openChat)requireAuthAction(()=>openChatDetail(e.data.openChat));else if(e.data&&e.data.openParche){switchTab('tab-descubrir');load()}});bellUI()}catch(e){}}
+async function bellUI(){let on=false;try{on=NATIVE?!!(fcmTok&&(await CP('PushNotifications').checkPermissions()).receive==='granted'):!!(swReg&&await swReg.pushManager.getSubscription())}catch(e){}const d=$('bellDot'),s=$('bellSvg');if(d)d.classList.toggle('hidden',!on);if(s)s.classList.toggle('animate-pulse',!on)}
+async function pushOff(){if(NATIVE){try{if(fcmTok)await sb.from('push_subs').delete().eq('endpoint','fcm:'+fcmTok);const P=CP('PushNotifications');if(P&&P.unregister)await P.unregister();fcmTok=null;kset('fcmTok',null)}catch(e){}bellUI();return}try{const s=swReg&&await swReg.pushManager.getSubscription();if(s){await sb.from('push_subs').delete().eq('endpoint',s.endpoint);await s.unsubscribe()}}catch(e){}bellUI()}
+window.requestNotificationPermission=async function(){
+ if(!sb)return toast(NOSB,'fa-triangle-exclamation');if(!uid){toast('Entra a tu cuenta para activar las notificaciones','fa-bell');return openAuthModal()}
+ if(NATIVE){const P=CP('PushNotifications');if(!P)return toast('Falta el plugin de notificaciones en la app','fa-triangle-exclamation');
+  if(fcmTok&&(await P.checkPermissions()).receive==='granted')return notifMenu({endpoint:'fcm:'+fcmTok});
+  const r=await P.requestPermissions();if(r.receive!=='granted')return toast('Permiso denegado. Actívalo en Ajustes → Apps → Párchate → Notificaciones.','fa-ban');
+  await P.register();return toast('🔔 Listo: te avisamos de mensajes, amigos y parches nuevos cerca','fa-bell')}
+ if(!swReg||!('Notification' in window)||!('PushManager' in window))return toast('Este navegador no admite notificaciones. En iPhone, primero añade la app a la pantalla de inicio.','fa-bell-slash');
+ const cur=await swReg.pushManager.getSubscription();if(cur)return notifMenu(cur);
+ if(await Notification.requestPermission()!=='granted')return toast('Permiso denegado. Actívalo en los ajustes del navegador.','fa-ban');
+ const {data}=await sb.from('app_config').select('value').eq('key','vapid_public').maybeSingle();if(!data||!data.value)return toast('Faltan las claves de notificaciones en el servidor','fa-triangle-exclamation');
+ try{const sub=await swReg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(data.value)}),j=sub.toJSON();
+  const {error}=await sb.from('push_subs').upsert({user_id:uid,endpoint:j.endpoint,p256dh:j.keys.p256dh,auth:j.keys.auth},{onConflict:'endpoint'});if(error)throw error;bellUI();toast('🔔 Listo: te avisamos de mensajes y parches nuevos cerca','fa-bell')}catch(e){toast('No pude activar las notificaciones','fa-triangle-exclamation')}};
+/* --- buscador inteligente, mapa interactivo y avisos por tipo --- */
+const ZONES={laureles:[6.2447,-75.5915],provenza:[6.2092,-75.5675],poblado:[6.2090,-75.5700],envigado:[6.1759,-75.5917],sabaneta:[6.1515,-75.6165],belen:[6.2290,-75.6085],centro:[6.2518,-75.5636],palmas:[6.2070,-75.5440],estadio:[6.2565,-75.5900],itagui:[6.1846,-75.5991],bello:[6.3370,-75.5580],floresta:[6.2570,-75.6040]};
+const zoneOf=q=>{const n=norm(q),k=Object.keys(ZONES).find(z=>n.includes(z));return k?{name:k,lat:ZONES[k][0],lng:ZONES[k][1]}:null};
+let pickLoc=null,pickTmp=null,bt=null;
+async function remote(q,anchor){if(!sb)return;const cols='id,title,zone,tag,cat,lat,lng,img,author,fuegos,created_at,expires_at',T=()=>sb.from('parches').select(cols),qs=[],
+ toks=[...new Set([...q.toLowerCase().split(/[^a-záéíóúüñ0-9]+/),...norm(q).split(/[^a-z0-9ñ]+/)])].filter(t=>t.length>2&&!STOP.has(norm(t))).slice(0,6);
+ if(toks.length)qs.push(T().or(toks.map(t=>`title.ilike.*${t}*,zone.ilike.*${t}*,tag.ilike.*${t}*`).join(',')).limit(30));
+ if(anchor){const d=.03,dl=d/Math.max(.2,Math.cos(anchor.lat*Math.PI/180));qs.push(T().gte('lat',anchor.lat-d).lte('lat',anchor.lat+d).gte('lng',anchor.lng-dl).lte('lng',anchor.lng+dl).limit(60))}
+ const rs=await Promise.all(qs),m=new Map(parches.map(p=>[p.id,p]));rs.forEach(r=>(r.data||[]).forEach(p=>m.set(p.id,p)));parches=[...m.values()].filter(keep)}
+async function gemini(q,ctx){const k=await kget('gkey');if(!k)return null;if(!navigator.onLine)return '📴 Sin internet: solo te muestro los parches.';
+ try{const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':k},
+  body:JSON.stringify({contents:[{parts:[{text:`Eres Parchate AI, guía de planes en Medellín. Responde en español, máximo 3 frases, siempre positivo. NUNCA digas que algo no existe ni que no hay nada: si no hay coincidencia exacta, recomienda lo más cercano de la lista. Recomienda SOLO parches de esta lista.\n${ctx}\nPregunta: ${q}`}]}]})});
+  const j=await r.json();return j.candidates?.[0]?.content?.parts?.[0]?.text||null}catch(e){return null}}
+window.askGemini=async function(){const q=v('geminiInput'),box=$('geminiResponse');if(!q||!box)return;box.classList.remove('hidden');box.innerHTML='<div class="text-purple-300 text-xs">🔎 Buscando parches…</div>';
+ const z=zoneOf(q),anchor=z||me,zl=z?z.name.charAt(0).toUpperCase()+z.name.slice(1):null;await remote(q,anchor);
+ const res=search(q),ids=new Set(res.map(p=>p.id)),dA=p=>p.lat==null?99:hv(anchor.lat,anchor.lng,p.lat,p.lng);
+ let near=anchor?parches.filter(p=>!ids.has(p.id)&&p.lat!=null&&dA(p)<=5).sort((a,b)=>dA(a)-dA(b)).slice(0,3):[];
+ if(!near.length)near=parches.filter(p=>!ids.has(p.id)).sort((a,b)=>rank(b)-rank(a)).slice(0,3);
+ const where=zl?'cerca de '+zl:'cerca de ti',H='mb-1.5 text-purple-300 font-bold';
+ let h=res.length?`<div class="${H}">🔎 ${res.length} parche(s) para “${esc(q)}”</div>${res.slice(0,6).map(mini).join('')}`:`<div class="${H}">✨ Por ahí aún no hay planes cargados para “${esc(q)}”, pero mira lo que hay ${where}:</div>`;
+ if(near.length)h+=`<div class="mt-2 ${H}">📍 ${res.length?'También '+where:'Te van a gustar'}</div>${near.map(mini).join('')}`;
+ else if(!res.length)h+='<div class="text-gray-300">Aún no hay parches cargados por aquí. ¡Sé la primera persona en crear uno!</div>';
+ h+=`<button data-act="crear" class="mt-2 w-full bg-purple-700/70 text-white py-1.5 rounded-xl text-[11px] font-bold">➕ ¿Conoces un buen plan? Crea el parche</button><div id="aiText" class="mt-2 text-gray-200"></div><div class="mt-2 flex gap-4 text-[10px]"><a class="text-pink-400 underline" target="_blank" rel="noopener" href="https://www.google.com/search?q=${encodeURIComponent(q+' Medellín')}">🌐 Buscar en la web</a><button data-act="key" class="text-purple-300 underline">⚙️ Clave Gemini</button></div>`;
+ box.innerHTML=h;const L=a=>a.map(p=>`${p.title} (${p.zone||''}${dist(p)!=null?', '+fmt(dist(p)):''}, ${p.fuegos} van)`).join('; ');
+ const t=await gemini(q,`Coinciden: ${L(res.slice(0,6))||'ninguno'}. Cercanos: ${L(near)||'ninguno'}.`);if(t){const e=$('aiText');if(e)e.innerText='🤖 '+t}};
+function loadBounds(){clearTimeout(bt);bt=setTimeout(async()=>{if(!sb||!lmap||lmap.getZoom()<11)return;const b=lmap.getBounds();
+ const {data}=await sb.from('parches').select('id,title,zone,tag,cat,lat,lng,img,author,fuegos,created_at,expires_at').gte('lat',b.getSouth()).lte('lat',b.getNorth()).gte('lng',b.getWest()).lte('lng',b.getEast()).limit(200);
+ const have=new Set(parches.map(p=>p.id)),add=(data||[]).filter(p=>!have.has(p.id));if(add.length){parches=parches.concat(add);drawMap()}},500)}
+const ocm=window.openCreateModal;window.openCreateModal=function(){ocm&&ocm.apply(this,arguments);const t=$('newParcheLoc');if(t)t.textContent=pickLoc?'📍 Ubicación elegida en el mapa':(me?'📍 Se usará tu ubicación actual':'⚠️ Activa tu ubicación o elígela en el mapa')};
+const ccm=window.closeCreateModal;window.closeCreateModal=function(){ccm&&ccm.apply(this,arguments);pickLoc=null};
+async function notifMenu(sub){const {data}=await sb.from('push_subs').select('want_msgs,want_near').eq('endpoint',sub.endpoint).maybeSingle(),w=data||{want_msgs:true,want_near:true};
+ let o=$('notifOv');if(!o){o=document.createElement('div');o.id='notifOv';o.className='fixed inset-0 z-[90] bg-black/80 flex items-end justify-center';document.body.appendChild(o)}
+ const row=(k,t,on)=>`<button data-act="np" data-k="${k}" class="w-full flex items-center justify-between py-2.5 text-xs text-white"><span>${t}</span><span class="${on?'text-emerald-400':'text-gray-500'} font-bold">${on?'Activado':'Apagado'}</span></button>`;
+ o.innerHTML=`<div class="bg-[#1f1635] w-full max-w-md rounded-t-3xl p-4"><div class="flex justify-between mb-2"><b class="text-white text-sm">🔔 Notificaciones</b><button onclick="document.getElementById('notifOv').remove()" class="text-gray-400">✕</button></div>${row('want_msgs','💬 Mensajes nuevos',w.want_msgs)}${row('want_near','📍 Parches nuevos a menos de 1 km',w.want_near)}<button data-act="np" data-k="off" class="w-full mt-3 bg-red-600/80 text-white py-2.5 rounded-xl text-xs font-bold">Desactivar todas en este dispositivo</button></div>`}
+async function notifSet(k){const sub=NATIVE?(fcmTok?{endpoint:'fcm:'+fcmTok}:null):swReg&&await swReg.pushManager.getSubscription();if(!sub)return;
+ if(k==='off'){$('notifOv')?.remove();await pushOff();return toast('Notificaciones desactivadas','fa-bell-slash')}
+ const {data}=await sb.from('push_subs').select(k).eq('endpoint',sub.endpoint).maybeSingle();await sb.from('push_subs').update({[k]:!(data&&data[k])}).eq('endpoint',sub.endpoint);notifMenu(sub)}
+async function askNotifOnce(){if(NATIVE){const P=CP('PushNotifications');if(!P||await kget('notifAsked'))return;if(!['prompt','prompt-with-rationale'].includes((await P.checkPermissions()).receive))return}else if(!swReg||!('Notification' in window)||Notification.permission!=='default'||await kget('notifAsked'))return;kset('notifAsked',1);
+ const o=document.createElement('div');o.id='notifAsk';o.className='fixed inset-x-3 bottom-24 z-[90] bg-[#1f1635] border border-pink-500/40 rounded-2xl p-4 shadow-2xl';
+ o.innerHTML='<b class="text-white text-sm block mb-1">🔔 ¿Te avisamos de lo que pasa?</b><p class="text-[11px] text-gray-300 mb-3">Mensajes nuevos y parches nuevos a menos de 1 km, incluso con la app cerrada. Puedes apagarlo cuando quieras.</p><div class="flex gap-2"><button data-act="nyes" class="flex-1 bg-pink-600 text-white py-2 rounded-xl text-xs font-bold">Activar</button><button data-act="nno" class="flex-1 bg-[#2d234a] text-gray-300 py-2 rounded-xl text-xs font-bold">Ahora no</button></div>';document.body.appendChild(o)}
+const tfmt=t=>{const ms=new Date(t)-Date.now();if(ms<=0)return '⏰ Vencido · renueva para que vuelva a verse';const m=Math.floor(ms/6e4),h=Math.floor(m/60),d=Math.floor(h/24);return '⏳ Quedan '+(d?d+' d '+(h%24)+' h':h?h+' h '+(m%60)+' min':m+' min')};
+const keep=p=>!p.expires_at||new Date(p.expires_at)>Date.now()||p.author===uid;
+async function renewP(id){const h=parseInt(prompt('¿Cuántas horas más quieres que dure? (1 a 72)','24'),10);if(!h)return;
+ const {data,error}=await sb.rpc('renew_parche',{p_id:id,p_hours:Math.min(72,Math.max(1,h))});if(error)return toast('No pude renovar el parche','fa-triangle-exclamation');
+ const p=parches.find(x=>x.id===id);if(p)p.expires_at=data;renderFeed();if(lmap)drawMap();toast('⏳ ¡Tiempo renovado!','fa-clock')}
+/* --- amigos --- */
+const fr=new Map();
+const frBtn=id=>{const f=fr.get(id),c='mt-1 px-2 py-0.5 rounded-lg text-[9px] font-bold ';
+ if(!f)return `<button data-act="fradd" data-id="${id}" class="${c}bg-pink-600 text-white">➕ Agregar</button>`;
+ if(f.status==='accepted')return `<span class="${c}text-emerald-300">✅ Amigos</span>`;
+ if(f.dir==='out')return `<span class="${c}text-gray-400">⏳ Enviada</span>`;
+ return `<button data-act="fracc" data-id="${f.id}" class="${c}bg-emerald-600 text-white">Aceptar</button>`};
+function updFrBtn(){const n=[...fr.values()].filter(f=>f.status==='pending'&&f.dir==='in').length,b=$('frBtn');if(b)b.textContent='👥 Amigos y solicitudes'+(n?` (${n})`:'')}
+async function loadFr(){if(!sb||!uid){fr.clear();updFrBtn();return}const {data}=await sb.from('friendships').select('id,requester,addressee,status');fr.clear();
+ (data||[]).forEach(f=>fr.set(f.requester===uid?f.addressee:f.requester,{id:f.id,status:f.status,dir:f.requester===uid?'out':'in'}));updFrBtn();drawRadar();loadFS()}
+async function loadFS(){fsMap={};const ids=[...fr.entries()].filter(([,f])=>f.status==='accepted').map(x=>x[0]);if(!ids.length)return;
+ const {data}=await sb.from('shares').select('parche_id,user_id').in('user_id',ids).limit(200);if(!data||!data.length)return;await nameFor(ids);
+ data.forEach(s=>{(fsMap[s.parche_id]=fsMap[s.parche_id]||[]).push(names[s.user_id]||'Un amigo')});
+ const need=Object.keys(fsMap).filter(i=>!parches.find(p=>p.id===i));
+ if(need.length){const r=await sb.from('parches').select('id,title,zone,tag,cat,lat,lng,img,author,fuegos,created_at,expires_at').in('id',need);parches=[...parches,...(r.data||[])].filter(keep)}renderFeed()}
+async function frAdd(id){const {error}=await sb.from('friendships').insert({requester:uid,addressee:id});if(error)return toast(error.code==='23505'?'Ya hay una solicitud entre ustedes':'No pude enviar la solicitud','fa-user-plus');toast('🤝 Solicitud enviada','fa-user-plus');loadFr()}
+async function frAcc(fid){const {error}=await sb.from('friendships').update({status:'accepted'}).eq('id',fid);if(error)return toast('No pude aceptar','fa-triangle-exclamation');toast('🎉 ¡Ahora son amigos!','fa-user-plus');await loadFr();if($('friendsOv'))showFriends()}
+async function frDel(fid){await sb.from('friendships').delete().eq('id',fid);await loadFr();if($('friendsOv'))showFriends()}
+async function showFriends(){await loadFr();const all=[...fr.entries()];await nameFor(all.map(x=>x[0]));
+ const nm=i=>esc(names[i]||'Parchero'),B=(a,id,t,c)=>`<button data-act="${a}" data-id="${id}" class="${c} px-2.5 py-1 rounded-lg text-[10px] font-bold text-white">${t}</button>`,
+ row=(i,b)=>`<div class="flex items-center justify-between gap-2 py-1.5"><b class="text-xs text-white truncate">${nm(i)}</b><div class="flex gap-1.5 shrink-0">${b}</div></div>`,
+ sec=(t,r)=>r.length?`<div class="text-[11px] font-bold text-purple-300 mt-3 mb-1">${t}</div>${r.join('')}`:'',
+ inc=all.filter(([,f])=>f.status==='pending'&&f.dir==='in').map(([i,f])=>row(i,B('fracc',f.id,'Aceptar','bg-emerald-600')+B('frdel',f.id,'Rechazar','bg-red-600/80'))),
+ out=all.filter(([,f])=>f.status==='pending'&&f.dir==='out').map(([i,f])=>row(i,B('frdel',f.id,'Cancelar','bg-gray-600'))),
+ fri=all.filter(([,f])=>f.status==='accepted').map(([i,f])=>row(i,`<button data-act="chat" data-id="${i}" data-name="${nm(i)}" class="bg-purple-600 px-2.5 py-1 rounded-lg text-[10px] font-bold text-white">Chatear</button>`+B('frdel',f.id,'Quitar','bg-gray-600')));
+ let o=$('friendsOv');if(!o){o=document.createElement('div');o.id='friendsOv';o.className='fixed inset-0 z-[90] bg-black/80 flex items-end justify-center';document.body.appendChild(o)}
+ o.innerHTML=`<div class="bg-[#1f1635] w-full max-w-md rounded-t-3xl p-4 max-h-[75vh] overflow-y-auto"><div class="flex justify-between mb-1"><b class="text-white text-sm">👥 Amigos</b><button onclick="document.getElementById('friendsOv').remove()" class="text-gray-400">✕</button></div>${sec('Solicitudes recibidas',inc)}${sec('Solicitudes enviadas',out)}${sec('Tus amigos ('+fri.length+')',fri)}${all.length?'':'<p class="text-xs text-gray-400 mt-3">Aún no tienes amigos. Agrégalos desde el radar 👋</p>'}</div>`}
+/* --- app Android (Capacitor): notificaciones FCM, Google y galería --- */
+const NATIVE=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
+const CP=n=>window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins[n];
+let fcmTok=null;
+async function saveTok(){if(!sb||!uid||!fcmTok)return;await sb.from('push_subs').upsert({user_id:uid,endpoint:'fcm:'+fcmTok,p256dh:'-',auth:'-'},{onConflict:'endpoint'})}
+async function nativeInit(){const P=CP('PushNotifications'),A=CP('App');
+ if(A)A.addListener('appUrlOpen',async({url})=>{if(!url||!url.startsWith('com.veltrix.parchate://login-callback'))return;try{CP('Browser').close()}catch(e){}
+  const u=new URL(url),code=u.searchParams.get('code');
+  if(code){const {error}=await sb.auth.exchangeCodeForSession(code);if(error)toast('No pude completar el ingreso con Google','fa-triangle-exclamation')}
+  else{const h=new URLSearchParams(u.hash.replace(/^#/,''));if(h.get('access_token'))await sb.auth.setSession({access_token:h.get('access_token'),refresh_token:h.get('refresh_token')})}});
+ if(!P)return;
+ P.addListener('registration',async t=>{fcmTok=t.value;kset('fcmTok',fcmTok);await saveTok();bellUI()});
+ P.addListener('registrationError',()=>toast('No pude registrar las notificaciones','fa-triangle-exclamation'));
+ P.addListener('pushNotificationReceived',n=>toast('🔔 '+(n.title||'Párchate')+(n.body?': '+n.body:''),'fa-bell'));
+ P.addListener('pushNotificationActionPerformed',a=>{const d=(a.notification&&a.notification.data)||{};if(d.chat)requireAuthAction(()=>openChatDetail(d.chat));else if(d.parche){switchTab('tab-descubrir');load()}});
+ fcmTok=(await kget('fcmTok'))||null;try{const r=await P.checkPermissions();if(r.receive==='granted')P.register()}catch(e){}}
+function fixGallery(){const h=[...document.querySelectorAll('h3')].find(x=>/Galer/i.test(x.textContent));if(h)h.innerHTML='<i class="fa-solid fa-photo-film text-pink-500"></i> Fotos';
+ const g=$('userMediaGallery');if(g)g.innerHTML='<div class="bg-[#1f1635] p-3 rounded-xl text-center text-[11px] text-gray-400 border border-purple-900/30 col-span-2">Aún no has subido fotos.</div>'}
+async function loadGallery(){const g=$('userMediaGallery');if(!g||!sb||!uid)return;
+ const {data}=await sb.from('parches').select('id,img,title').eq('author',uid).not('img','is',null).order('created_at',{ascending:false}).limit(60);
+ if(data&&data.length)g.innerHTML=data.map(p=>`<img src="${esc(p.img)}" alt="${esc(p.title)}" loading="lazy" class="w-full h-28 object-cover rounded-xl border border-purple-900/30">`).join('')}
+window.executeDeleteAccount=async function(){closeDeleteModal();
+ if(!sb||!uid)return toast('Entra a tu cuenta para eliminarla','fa-user');
+ toast('Eliminando tu cuenta…','fa-trash-can');try{await pushOff()}catch(e){}
+ const {error}=await sb.functions.invoke('delete-account');if(error)return toast('No pude eliminar la cuenta. Intenta de nuevo o escríbenos.','fa-triangle-exclamation');
+ try{await sb.auth.signOut()}catch(e){}try{localStorage.clear();const d=await idb;if(d)d.transaction('kv','readwrite').objectStore('kv').clear()}catch(e){}
+ toast('Tu cuenta y tus datos fueron eliminados','fa-check-double');setTimeout(()=>location.reload(),1500)};
+async function banner(){const inApp=/; wv\)/.test(navigator.userAgent)||!!window.Capacitor||document.referrer.startsWith('android-app://')||matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches;
  let flag=null;try{if(inApp)localStorage.setItem('pch_app','1');flag=localStorage.getItem('pch_app')}catch(e){}if(inApp||flag)return;const t=await kget('donbn');if(t&&Date.now()-t<6048e5)return;const c=$('dynamicParchesContainer');if(!c||$('donBanner'))return;
  c.insertAdjacentHTML('beforebegin',`<div id="donBanner" class="bg-gradient-to-r from-purple-900/70 to-pink-900/60 border border-pink-500/40 rounded-2xl p-3 mb-3 flex items-center gap-3"><div class="text-2xl">💜</div><div class="flex-1 min-w-0"><b class="text-xs text-white block">Ayuda a mantener Párchate</b><span class="text-[10px] text-pink-100">Dona por Nequi para pagar los servidores: <b>301 791 5260</b></span></div><div class="flex flex-col gap-1 items-end"><button data-act="copynq" class="bg-pink-600 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold">Copiar</button><button data-act="closenq" class="text-gray-300 text-[10px]">Ahora no</button></div></div>`)}
 
@@ -1918,30 +2057,28 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(
  if(a==='ubicar'&&p)window.open(p.lat!=null?`https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.title+' '+p.zone+' Medellin')}`,'_blank');
  else if(a==='grupo')requireAuthAction(()=>openGroupChat(id,b.dataset.name))
  else if(a==='key'){const k=prompt('Pega tu clave de Gemini (queda solo en este dispositivo). Vacía = quitarla:');if(k!==null){kset('gkey',k.trim());toast(k.trim()?'Clave guardada':'Clave eliminada','fa-key')}}
- else if(a==='chat'){$('fullRadar')?.remove();requireAuthAction(()=>openChatDetail(id,b.dataset.name))}else if(a==='once'){if(viewed.has(id))return toast('🔒 Esta foto ya expiró.','fa-lock');viewed.add(id);kset('viewed',[...viewed]);$('ephemeralImageSrc').src=b.dataset.src;$('ephemeralViewsCounter').innerText='Visualizaciones restantes: 0';$('ephemeralViewerModal').classList.remove('hidden');b.outerHTML='<div class="text-[11px] text-gray-500 font-bold">🔒 Foto expirada</div>'}else if(a==='copynq'){navigator.clipboard?.writeText('3017915260');toast('Número de Nequi copiado 💜','fa-copy')}else if(a==='closenq'){$('donBanner')?.remove();kset('donbn',Date.now())}else if(!sb)toast(NOSB,'fa-triangle-exclamation');
- else if(a==='repm'||a==='blkm'){const mid=selectedMessageRef&&selectedMessageRef.id,el=$('msg_'+mid),tu=el&&el.dataset.sender;closeMessageOptions();if(!tu||tu===uid)return toast('No puedes hacerlo con tu propio mensaje','fa-ban');a==='repm'?report({target_user:tu,message_id:mid}):block(tu)}else if(a==='blkl')requireAuthAction(showBlocked);else if(a==='unblk')unblock(id);else if(a==='repp')requireAuthAction(()=>report({parche_id:id,target_user:p?.author||null}));else if(a==='fuego')requireAuthAction(()=>fuego(id));else if(a==='opino')requireAuthAction(()=>opino(id));else if(a==='share')requireAuthAction(()=>share(id))});
+ else if(a==='chat'){$('fullRadar')?.remove();$('friendsOv')?.remove();requireAuthAction(()=>openChatDetail(id,b.dataset.name))}else if(a==='once'){if(viewed.has(id))return toast('🔒 Esta foto ya expiró.','fa-lock');viewed.add(id);kset('viewed',[...viewed]);$('ephemeralImageSrc').src=b.dataset.src;$('ephemeralViewsCounter').innerText='Visualizaciones restantes: 0';$('ephemeralViewerModal').classList.remove('hidden');b.outerHTML='<div class="text-[11px] text-gray-500 font-bold">🔒 Foto expirada</div>'}else if(a==='copynq'){navigator.clipboard?.writeText('3017915260');toast('Número de Nequi copiado 💜','fa-copy')}else if(a==='closenq'){$('donBanner')?.remove();kset('donbn',Date.now())}else if(!sb)toast(NOSB,'fa-triangle-exclamation');
+ else if(a==='repm'||a==='blkm'){const mid=selectedMessageRef&&selectedMessageRef.id,el=$('msg_'+mid),tu=el&&el.dataset.sender;closeMessageOptions();if(!tu||tu===uid)return toast('No puedes hacerlo con tu propio mensaje','fa-ban');a==='repm'?report({target_user:tu,message_id:mid}):block(tu)}else if(a==='fradd')requireAuthAction(()=>frAdd(id));else if(a==='fracc')frAcc(id);else if(a==='frdel')frDel(id);else if(a==='frl')requireAuthAction(showFriends);else if(a==='renew')requireAuthAction(()=>renewP(id));else if(a==='np')notifSet(b.dataset.k);else if(a==='nyes'){$('notifAsk')?.remove();requestNotificationPermission()}else if(a==='nno')$('notifAsk')?.remove();else if(a==='crear')requireAuthAction(()=>openCreateModal());else if(a==='crearaqui'){if(pickTmp){pickLoc={lat:pickTmp.lat,lng:pickTmp.lng};lmap.closePopup();requireAuthAction(()=>openCreateModal())}}else if(a==='elegirmapa'){closeCreateModal();switchTab('tab-descubrir');switchFeedView('mapa');toast('Toca el mapa y elige «Crear parche aquí»','fa-map-location-dot')}else if(a==='blkl')requireAuthAction(showBlocked);else if(a==='unblk')unblock(id);else if(a==='repp')requireAuthAction(()=>report({parche_id:id,target_user:p?.author||null}));else if(a==='fuego')requireAuthAction(()=>fuego(id));else if(a==='opino')requireAuthAction(()=>opino(id));else if(a==='share')requireAuthAction(()=>share(id))});
 
 /* --- guardado local de chats y arranque --- */
 addEventListener('offline',()=>toast('Sin internet','fa-wifi'));addEventListener('online',()=>{toast('Conectado','fa-wifi');load()});
 (async function(){
- const pw=document.getElementById('regEmailInput');if(pw)pw.insertAdjacentHTML('afterend',`<input id="regPassInput" type="password" placeholder="Contraseña (mínimo 6)" class="${pw.className}" style="margin-top:6px">`);
+ buildHeader();initSW();iconFallback();fixGallery();const pw=document.getElementById('regEmailInput');if(pw)pw.insertAdjacentHTML('afterend',`<input id="regPassInput" type="password" placeholder="Contraseña (mínimo 6)" class="${pw.className}" style="margin-top:6px">`);
  $('regPassInput')?.insertAdjacentHTML('afterend','<label class="flex items-start gap-2 text-[10px] text-gray-300 mt-2"><input id="regAge18" type="checkbox" class="mt-0.5"><span>Confirmo que tengo <b>18 años o más</b> y acepto los <a href="/terminos.html" target="_blank" class="text-pink-400 underline">Términos</a>, la <a href="/privacidad.html" target="_blank" class="text-pink-400 underline">Privacidad</a> y la <a href="/seguridad-infantil.html" target="_blank" class="text-pink-400 underline">Seguridad infantil</a>.</span></label>');
- $('chatsListContainer')?.insertAdjacentHTML('beforebegin','<button data-act="blkl" class="text-[11px] text-gray-400 underline mb-2">🚫 Usuarios bloqueados</button>');const mo=$('messageOptionsModal');if(mo)(mo.firstElementChild||mo).insertAdjacentHTML('beforeend','<button data-act="repm" class="w-full text-left px-4 py-2.5 text-xs font-bold text-orange-300">🚩 Reportar mensaje</button><button data-act="blkm" class="w-full text-left px-4 py-2.5 text-xs font-bold text-red-400">🚫 Bloquear a esta persona</button>');
+ $('chatsListContainer')?.insertAdjacentHTML('beforebegin','<div class="flex gap-4 mb-2"><button data-act="frl" id="frBtn" class="text-[11px] text-pink-300 underline">👥 Amigos y solicitudes</button><button data-act="blkl" class="text-[11px] text-gray-400 underline">🚫 Usuarios bloqueados</button></div>');const mo=$('messageOptionsModal');if(mo)(mo.firstElementChild||mo).insertAdjacentHTML('beforeend','<button data-act="repm" class="w-full text-left px-4 py-2.5 text-xs font-bold text-orange-300">🚩 Reportar mensaje</button><button data-act="blkm" class="w-full text-left px-4 py-2.5 text-xs font-bold text-red-400">🚫 Bloquear a esta persona</button>');
  document.querySelectorAll('[onclick="enterAsAdminQuick()"]').forEach(x=>x.style.display='none');
  const z=document.getElementById('newParcheZone');if(z)z.insertAdjacentHTML('afterend','<input id="newParcheImg" type="file" accept="image/*" class="w-full text-[11px] text-gray-300 mt-2">');
+ $('newParcheImg')?.insertAdjacentHTML('afterend','<div id="newParcheLoc" class="text-[11px] text-pink-300 mt-2"></div><button type="button" data-act="elegirmapa" class="text-[11px] text-purple-300 underline mt-1">🗺️ Elegir ubicación en el mapa</button><div class="text-[11px] text-gray-300 mt-3">⏳ ¿Cuánto dura el parche?</div><select id="newParcheDur" class="w-full bg-[#2d234a] text-white rounded-xl p-2 text-xs mt-1 border border-purple-500/30"><option value="3">3 horas</option><option value="6">6 horas</option><option value="12">12 horas</option><option value="24" selected>24 horas</option><option value="48">2 días</option><option value="72">3 días</option></select>');
  const sl=document.getElementById('radarKmSlider');if(sl){sl.min=.1;sl.max=1;sl.step=.1;sl.value=1}
- parches=seed();renderFeed();viewed=new Set((await kget('viewed'))||[]);banner();loadChats();
+ parches=seed();renderFeed();viewed=new Set((await kget('viewed'))||[]);banner();loadChats();setInterval(()=>{document.querySelectorAll('[data-exp]').forEach(e=>e.textContent=tfmt(e.dataset.exp));const n=parches.length;parches=parches.filter(keep);if(parches.length!==n){renderFeed();if(lmap)drawMap();drawRadar()}},3e4);
  if(!sb){toast(NOSB,'fa-triangle-exclamation');return}
  sb.auth.onAuthStateChange((_e,s)=>setTimeout(()=>onSession(s),0));
- await load();locate();setInterval(locate,6e4);
- let t;const deb=()=>{clearTimeout(t);t=setTimeout(load,800)};
- sb.channel('pub').on('postgres_changes',{event:'*',schema:'public',table:'parches'},deb).subscribe();
+ await load();locate();setInterval(locate,12e4);setInterval(()=>{if(!document.hidden){load();if(uid)loadFr();else drawRadar()}},12e4);
+ 
+ 
 })();
 })();
 </script>
-
-</body>
-</html>
 
 </body>
 </html>
