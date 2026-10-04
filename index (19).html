@@ -1,0 +1,2084 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Párchate - MDE (Radar & Parches)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Leaflet CSS for Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            background-color: #0f0c1b;
+            color: #ffffff;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            overflow-x: hidden;
+        }
+        .app-view {
+            display: none;
+        }
+        .app-view.active {
+            display: block;
+        }
+        #map {
+            width: 100%;
+            height: calc(100vh - 290px);
+            border-radius: 1rem;
+            z-index: 10;
+        }
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4a3f6b;
+            border-radius: 2px;
+        }
+        input[type=range] {
+            accent-color: #ec4899;
+        }
+        .pulse-glow {
+            animation: pulseGlow 2s infinite;
+        }
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(236, 72, 153, 0.4); }
+            50% { box-shadow: 0 0 25px rgba(236, 72, 153, 0.8); }
+        }
+        .once-active {
+            background-color: #ec4899 !important;
+            color: #ffffff !important;
+            border-color: #f472b6 !important;
+            box-shadow: 0 0 10px rgba(236, 72, 153, 0.8);
+        }
+        [contenteditable="true"]:empty:before {
+            content: attr(data-placeholder);
+            color: #6b7280;
+            pointer-events: none;
+            display: block;
+        }
+    </style>
+<link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#18122b"><link rel="apple-touch-icon" href="/icon-192.png"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Párchate">
+</head>
+<body class="bg-[#0f0c1b] text-white flex flex-col min-h-screen selection:bg-pink-500 selection:text-white" onclick="closeAllDropdowns(event)">
+
+    <div class="w-full max-w-md mx-auto bg-[#0f0c1b] min-h-screen flex flex-col shadow-2xl relative border-x border-purple-950">
+
+        <!-- Toast Flotante Notificación -->
+        <div id="toastNotification" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 hidden bg-gradient-to-r from-pink-600 to-purple-600 text-white text-xs font-bold px-4 py-2.5 rounded-2xl shadow-2xl border border-pink-400 flex items-center gap-2 transition-all">
+            <i id="toastIcon" class="fa-solid fa-circle-info"></i>
+            <span id="toastText">Notificación</span>
+        </div>
+
+        <!-- Header App -->
+        <header class="flex flex-col items-center justify-center py-3 px-4 bg-[#18122b]/95 backdrop-blur-md border-b border-[#2d234a] sticky top-0 z-40 text-center relative overflow-hidden">
+            <div class="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]"></div>
+
+            <div class="flex justify-between items-center w-full relative z-10">
+                <button onclick="requestNotificationPermission()" id="notificationBellBtn" class="text-xs bg-purple-900/60 border border-purple-500/40 p-2 rounded-xl text-yellow-400 font-bold flex items-center gap-1 shadow-lg active:scale-95 transition" title="Activar Notificaciones en Segundo Plano">
+                    <i class="fa-solid fa-bell animate-bounce"></i>
+                </button>
+                
+                <div class="text-center relative">
+                    <div class="absolute -top-5 left-1/2 -translate-x-1/2 text-2xl animate-bounce">
+                        🎅🎄
+                    </div>
+                    <h1 class="text-2xl font-black tracking-widest bg-gradient-to-r from-pink-500 via-purple-400 to-indigo-400 bg-clip-text text-transparent pt-1">
+                        PÁRCHATE
+                    </h1>
+                    <p class="text-[10px] font-extrabold text-purple-300 tracking-wider">
+                        Medellín • <span class="text-pink-500">RADAR & GROUPS</span>
+                    </p>
+                </div>
+
+                <button onclick="checkAuthAndOpenProfile()" id="headerUserBadge" class="text-xs bg-purple-900/60 border border-purple-500/40 px-2.5 py-1.5 rounded-xl text-pink-300 font-bold flex items-center gap-1 shadow-lg active:scale-95 transition">
+                    <i class="fa-solid fa-user-circle"></i> <span id="headerStatusText">Invitado</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Contenido Principal -->
+        <main class="flex-1 pb-24 overflow-y-auto">
+
+            <!-- TAB 1: TOP FUEGO -->
+            <section id="tab-descubrir" class="app-view active p-3.5 space-y-3.5">
+                
+                <!-- Asistente IA Gemini -->
+                <div class="bg-[#1f1635] border border-purple-500/20 rounded-2xl p-3 shadow-md">
+                    <div class="flex items-center gap-1.5 mb-2 text-purple-400 font-bold text-xs">
+                        <i class="fa-solid fa-wand-magic-sparkles text-pink-500"></i>
+                        <span>Parchate AI (Gemini MDE)</span>
+                    </div>
+                    <div class="flex gap-1.5">
+                        <input type="text" id="geminiInput" placeholder="¿Qué hay top hoy en Provenza o Laureles?" class="flex-1 bg-[#120c22] border border-purple-900 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-purple-500 text-white placeholder-gray-500">
+                        <button onclick="askGemini()" class="bg-gradient-to-r from-pink-600 to-purple-600 text-white px-3 py-2 rounded-xl text-xs font-bold active:scale-95 transition shadow">Preguntar</button>
+                    </div>
+                    <div id="geminiResponse" class="mt-2 text-[11px] text-gray-300 bg-[#120c22] p-2.5 rounded-xl border border-purple-950/50 hidden leading-relaxed"></div>
+                </div>
+
+                <!-- Filtros de Contenido -->
+                <div class="flex gap-1.5 overflow-x-auto pb-1 text-[11px] scrollbar-none">
+                    <button onclick="filterFeed('todo')" id="filter-todo" class="bg-pink-600 text-white px-3 py-1.5 rounded-xl font-bold whitespace-nowrap shadow">🔥 Todo</button>
+                    <button onclick="filterFeed('cerca')" id="filter-cerca" class="bg-[#1f1635] text-purple-300 border border-purple-900/50 px-3 py-1.5 rounded-xl font-medium whitespace-nowrap">📍 Cerca (&lt; 1 km)</button>
+                    <button onclick="filterFeed('locales')" id="filter-locales" class="bg-[#1f1635] text-purple-300 border border-purple-900/50 px-3 py-1.5 rounded-xl font-medium whitespace-nowrap">🍹 Bares & Locales</button>
+                    <button onclick="filterFeed('cafes')" id="filter-cafes" class="bg-[#1f1635] text-purple-300 border border-purple-900/50 px-3 py-1.5 rounded-xl font-medium whitespace-nowrap">☕ Cafés</button>
+                    <button onclick="filterFeed('rumba')" id="filter-rumba" class="bg-[#1f1635] text-purple-300 border border-purple-900/50 px-3 py-1.5 rounded-xl font-medium whitespace-nowrap">🎉 Rumba</button>
+                </div>
+
+                <!-- Modos de Vista -->
+                <div class="flex bg-[#18122b] p-1 rounded-xl border border-purple-900/40 text-[11px]">
+                    <button onclick="switchFeedView('lista')" id="btn-view-lista" class="flex-1 py-2 rounded-lg font-bold bg-pink-600 text-white transition shadow">📸 Lista (Feed Global)</button>
+                    <button onclick="switchFeedView('mapa')" id="btn-view-mapa" class="flex-1 py-2 rounded-lg font-medium text-gray-400 transition">🗺️ Mapa MDE</button>
+                </div>
+
+                <!-- VISTA FEED LISTA -->
+                <div id="feed-lista-view" class="space-y-3.5">
+                    <div class="bg-gradient-to-r from-purple-900/40 to-pink-900/40 border border-purple-500/30 rounded-2xl p-3.5 text-center shadow-md">
+                        <h3 class="text-xs font-bold mb-1 text-pink-300">¡Sube tu foto optimizada a tu parche!</h3>
+                        <p class="text-[10px] text-gray-300 mb-2.5">Compresión instantánea directa al parche. (Videos bloqueados 🚫)</p>
+                        <button onclick="requireAuthAction(() => triggerPhotoUpload('feed'))" class="inline-block bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-bold px-4 py-2 rounded-xl cursor-pointer transition shadow">
+                            <i class="fa-solid fa-camera mr-1.5"></i> Subir Foto Optimizada
+                        </button>
+                    </div>
+
+                    <!-- Contenedor Dinámico de Parches Feed -->
+                    <div id="dynamicParchesContainer" class="space-y-3.5">
+                        <!-- Parche 1 -->
+                        <div class="bg-[#1f1635] border border-[#3b2d63] rounded-2xl p-4 relative overflow-hidden shadow-xl" data-category="locales cerca rumba" data-distance="0.4" id="card-1">
+                            <div class="flex justify-between items-center mb-1.5">
+                                <span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-0.5 rounded-lg text-[10px] font-bold tracking-wide uppercase inline-flex items-center gap-1">
+                                    PROMO SPOT 🍹
+                                </span>
+                                <div class="bg-[#2d234a] border border-purple-900/60 px-2.5 py-1 rounded-xl text-xs font-bold text-orange-400 flex items-center gap-1 shadow-inner">
+                                    🔥 <span id="count-1">45</span>
+                                </div>
+                            </div>
+                            <h3 class="font-bold text-base text-white leading-snug">Rumba & 2x1 Cócteles en Provenza</h3>
+                            <p class="text-[11px] text-gray-400 mt-0.5 mb-2 flex items-center justify-between">
+                                <span><i class="fa-solid fa-location-dot text-pink-500 mr-1.5"></i> Provenza, El Poblado</span>
+                                <span class="text-pink-400 font-bold">0.4 km</span>
+                            </p>
+                            <div class="relative rounded-2xl overflow-hidden bg-black/40 h-44 mb-3 border border-purple-900/30 group">
+                                <img src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=60" alt="Provenza" class="w-full h-full object-cover">
+                                <button onclick="openExternalNav('Provenza, El Poblado, Medellin')" class="absolute top-2.5 right-2.5 bg-emerald-600/90 hover:bg-emerald-500 active:scale-95 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl shadow-lg backdrop-blur-sm flex items-center gap-1.5 transition">
+                                    <i class="fa-solid fa-map-location-dot"></i> Ubicar
+                                </button>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2">
+                                <button onclick="requireAuthAction(() => toggleAxFuego(1))" id="btn-fuego-1" class="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 active:scale-95 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 shadow transition">
+                                    🔥 A fuego
+                                </button>
+                                <button onclick="requireAuthAction(() => openOpinoModal('Rumba & 2x1 Cócteles en Provenza'))" class="bg-[#2d234a] hover:bg-purple-900/50 border border-purple-500/20 active:scale-95 text-purple-200 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 transition">
+                                    💬 Opino
+                                </button>
+                                <button onclick="requireAuthAction(() => shareToGlobalGame('Rumba & 2x1 Cócteles en Provenza', 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=60', 'Provenza, El Poblado'))" class="bg-[#3b1c3a] hover:bg-[#4a2349] border border-pink-500/30 active:scale-95 text-pink-300 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 transition">
+                                    🔄 x2
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Parche 2 -->
+                        <div class="bg-[#1f1635] border border-[#3b2d63] rounded-2xl p-4 relative overflow-hidden shadow-xl" data-category="locales" data-distance="3.2" id="card-2">
+                            <div class="flex justify-between items-center mb-1.5">
+                                <span class="bg-purple-500/20 text-purple-300 border border-purple-500/40 px-2.5 py-0.5 rounded-lg text-[10px] font-bold tracking-wide uppercase inline-flex items-center gap-1">
+                                    TARDEO 🌅
+                                </span>
+                                <div class="bg-[#2d234a] border border-purple-900/60 px-2.5 py-1 rounded-xl text-xs font-bold text-orange-400 flex items-center gap-1 shadow-inner">
+                                    🔥 <span id="count-2">18</span>
+                                </div>
+                            </div>
+                            <h3 class="font-bold text-base text-white leading-snug">Cena y Vistas en Las Palmas</h3>
+                            <p class="text-[11px] text-gray-400 mt-0.5 mb-2 flex items-center justify-between">
+                                <span><i class="fa-solid fa-location-dot text-pink-500 mr-1.5"></i> Vía Las Palmas, Medellín</span>
+                                <span class="text-pink-400 font-bold">3.2 km</span>
+                            </p>
+                            <div class="relative rounded-2xl overflow-hidden bg-black/40 h-44 mb-3 border border-purple-900/30 group">
+                                <img src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=500&auto=format&fit=crop&q=60" alt="Las Palmas" class="w-full h-full object-cover">
+                                <button onclick="openExternalNav('Km 8 Via Las Palmas, Medellin')" class="absolute top-2.5 right-2.5 bg-emerald-600/90 hover:bg-emerald-500 active:scale-95 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl shadow-lg backdrop-blur-sm flex items-center gap-1.5 transition">
+                                    <i class="fa-solid fa-map-location-dot"></i> Ubicar
+                                </button>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2">
+                                <button onclick="requireAuthAction(() => toggleAxFuego(2))" id="btn-fuego-2" class="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 active:scale-95 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 shadow transition">
+                                    🔥 A fuego
+                                </button>
+                                <button onclick="requireAuthAction(() => openOpinoModal('Cena y Vistas en Las Palmas'))" class="bg-[#2d234a] hover:bg-purple-900/50 border border-purple-500/20 active:scale-95 text-purple-200 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 transition">
+                                    💬 Opino
+                                </button>
+                                <button onclick="requireAuthAction(() => shareToGlobalGame('Cena y Vistas en Las Palmas', 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=500&auto=format&fit=crop&q=60', 'Vía Las Palmas, Medellín'))" class="bg-[#3b1c3a] hover:bg-[#4a2349] border border-pink-500/30 active:scale-95 text-pink-300 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 transition">
+                                    🔄 x2
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VISTA MAPA -->
+                <div id="feed-mapa-view" class="space-y-2.5 hidden">
+                    <div class="bg-purple-900/30 border border-purple-500/30 p-2.5 rounded-xl text-[11px] text-purple-200 flex justify-between items-center">
+                        <span>🗺️ Toca el mapa para ubicar o crear un parche.</span>
+                        <button onclick="openExternalNav('Medellin')" class="bg-emerald-600 text-white px-2.5 py-1 rounded-lg font-bold">Abrir Maps</button>
+                    </div>
+                    <div id="map" class="border border-purple-500/30 rounded-2xl shadow-lg"></div>
+                </div>
+
+                <!-- Botón Crear Parche Rápido -->
+                <button onclick="requireAuthAction(() => openCreateModal())" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 py-3 rounded-2xl font-bold text-xs shadow-lg active:scale-95 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-plus text-sm"></i> Crear Parche Rápido
+                </button>
+            </section>
+
+            <!-- TAB 2: RADAR & GRUPOS CERCANOS -->
+            <section id="tab-mapa" class="app-view p-3.5 space-y-4">
+                <!-- Selector de subsección Radar -->
+                <div class="flex bg-[#18122b] p-1 rounded-xl border border-purple-900/40 text-[11px]">
+                    <button onclick="switchRadarSubTab('personas')" id="subtab-btn-personas" class="flex-1 py-2 rounded-lg font-bold bg-pink-600 text-white transition shadow">
+                        <i class="fa-solid fa-users mr-1"></i> Personas Cercanas
+                    </button>
+                    <button onclick="switchRadarSubTab('grupos')" id="subtab-btn-grupos" class="flex-1 py-2 rounded-lg font-medium text-gray-400 transition">
+                        <i class="fa-solid fa-people-group mr-1"></i> Grupos & Parches
+                    </button>
+                </div>
+
+                <!-- RANGO RADAR -->
+                <div class="bg-gradient-to-r from-pink-900/30 to-purple-900/30 border border-purple-500/30 p-3.5 rounded-2xl space-y-3">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h3 class="font-bold text-xs text-pink-400 flex items-center gap-1.5"><i class="fa-solid fa-radar"></i> Radar de Cercanía</h3>
+                            <p class="text-[10px] text-gray-300">Ajusta el rango para descubrir personas y grupos cercanos.</p>
+                        </div>
+                        <button onclick="requireAuthAction(() => toggleRadarActivos())" id="radarToggleBtn" class="bg-green-600 text-white text-[11px] px-3 py-1 rounded-xl font-bold shadow">Activo</button>
+                    </div>
+
+                    <div class="bg-[#120c22] p-3 rounded-xl border border-purple-900/60 space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-purple-300 font-bold">Rango de Acercamiento:</span>
+                            <span id="rangeKmValueDisplay" class="font-black text-pink-400 bg-pink-950/60 px-2 py-0.5 rounded-lg border border-pink-500/40">1.0 km</span>
+                        </div>
+                        <input type="range" id="radarKmSlider" min="0.02" max="200" step="0.1" value="1.0" class="w-full h-2 bg-purple-950 rounded-lg appearance-none cursor-pointer" oninput="updateRadarRange(this.value)">
+                    </div>
+                </div>
+
+                <!-- SUBSECCIÓN 1: PERSONAS CERCANAS -->
+                <div id="radarSubTabPersonas" class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <h4 class="text-xs font-bold text-purple-300"><i class="fa-solid fa-users-viewfinder mr-1 text-pink-500"></i> Personas en tu Rango</h4>
+                        <button onclick="requireAuthAction(() => openFullRadarModal())" class="text-[10px] text-pink-400 font-bold hover:underline">Ver lista completa (<span id="radarCountNum">3</span>)</button>
+                    </div>
+                    <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-none" id="radarCarousel"></div>
+
+                    <div class="space-y-2 pt-2">
+                        <h4 class="text-xs font-bold text-purple-300"><i class="fa-solid fa-fire mr-1 text-pink-500"></i> Eventos Cercanos en tu Rango</h4>
+                        <div id="radarEventsList" class="space-y-2.5"></div>
+                    </div>
+                </div>
+
+                <!-- SUBSECCIÓN 2: GRUPOS EN RADAR (PARCHE INFINITO Y MAS) -->
+                <div id="radarSubTabGrupos" class="space-y-3.5 hidden">
+                    <div class="flex justify-between items-center">
+                        <h4 class="text-xs font-bold text-purple-300 flex items-center gap-1.5">
+                            <i class="fa-solid fa-layer-group text-pink-500"></i> Parches Oficiales y de la Comunidad
+                        </h4>
+                        <button onclick="requireAuthAction(() => openCreateGroupModal())" class="bg-gradient-to-r from-pink-600 to-purple-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-xl shadow active:scale-95 transition">
+                            <i class="fa-solid fa-plus mr-1"></i> Crear Grupo
+                        </button>
+                    </div>
+
+                    <!-- Lista de Grupos Oficiales -->
+                    <div class="space-y-3" id="groupsRadarContainer">
+                        <!-- Grupo 1: Parche Infinito -->
+                        <div class="bg-gradient-to-r from-purple-950 to-[#1f1635] border border-pink-500/60 rounded-2xl p-3.5 shadow-xl relative overflow-hidden" id="groupCard_parche-infinito">
+                            <div class="flex justify-between items-start mb-2">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-pink-600 to-indigo-600 flex items-center justify-center text-xl font-black shadow-lg">
+                                        ♾️
+                                    </div>
+                                    <div>
+                                        <h3 class="font-black text-sm text-white flex items-center gap-1.5">
+                                            Parche Infinito
+                                            <span class="bg-pink-600/30 border border-pink-500 text-pink-300 text-[8px] px-1.5 py-0.5 rounded-md font-bold uppercase" id="groupAdminTag1">ADMIN: COMUNIDAD</span>
+                                        </h3>
+                                        <p class="text-[10px] text-purple-200">Grupo principal de Medellín</p>
+                                    </div>
+                                </div>
+                                <span class="bg-green-500/20 text-green-400 border border-green-500/40 text-[9px] px-2 py-0.5 rounded-full font-bold">1,420 Miembros</span>
+                            </div>
+                            <div class="bg-[#120c22]/70 p-2 rounded-xl text-[10px] text-gray-300 mb-3 border border-purple-900/40">
+                                💬 <em>Carlos M.: "¡Parce, el parche de hoy está que arde!"</em>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="requireAuthAction(() => openGroupChat('parche-infinito', 'Parche Infinito ♾️'))" class="flex-1 bg-pink-600 hover:bg-pink-700 text-white py-2 rounded-xl text-xs font-bold shadow transition flex items-center justify-center gap-1">
+                                    <i class="fa-solid fa-comments"></i> Entrar al Chat
+                                </button>
+                                <button onclick="requireAuthAction(() => openInviteModal('parche-infinito'))" class="bg-[#2d234a] hover:bg-purple-900/60 text-purple-200 px-3 py-2 rounded-xl text-xs font-bold border border-purple-500/30 transition">
+                                    <i class="fa-solid fa-user-plus"></i> Invitar
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Grupo 2: Únete al Parche -->
+                        <div class="bg-gradient-to-r from-[#1f1635] to-indigo-950 border border-purple-500/40 rounded-2xl p-3.5 shadow-xl relative overflow-hidden" id="groupCard_unete-al-parche">
+                            <div class="flex justify-between items-start mb-2">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-pink-600 flex items-center justify-center text-xl font-black shadow-lg">
+                                        🔥
+                                    </div>
+                                    <div>
+                                        <h3 class="font-black text-sm text-white flex items-center gap-1.5">
+                                            Únete al Parche
+                                            <span class="bg-pink-600/30 border border-pink-500 text-pink-300 text-[8px] px-1.5 py-0.5 rounded-md font-bold uppercase" id="groupAdminTag2">ADMIN: COMUNIDAD</span>
+                                        </h3>
+                                        <p class="text-[10px] text-purple-200">Parche abierto para conocer gente en la ciudad</p>
+                                    </div>
+                                </div>
+                                <span class="bg-green-500/20 text-green-400 border border-green-500/40 text-[9px] px-2 py-0.5 rounded-full font-bold">890 Miembros</span>
+                            </div>
+                            <div class="bg-[#120c22]/70 p-2 rounded-xl text-[10px] text-gray-300 mb-3 border border-purple-900/40">
+                                💬 <em>Sofía R.: "¿Quién para ir a tomar algo a Laureles?"</em>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="requireAuthAction(() => openGroupChat('unete-al-parche', 'Únete al Parche 🔥'))" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-xl text-xs font-bold shadow transition flex items-center justify-center gap-1">
+                                    <i class="fa-solid fa-comments"></i> Entrar al Chat
+                                </button>
+                                <button onclick="requireAuthAction(() => openInviteModal('unete-al-parche'))" class="bg-[#2d234a] hover:bg-purple-900/60 text-purple-200 px-3 py-2 rounded-xl text-xs font-bold border border-purple-500/30 transition">
+                                    <i class="fa-solid fa-user-plus"></i> Invitar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: CHATS PRIVADOS -->
+            <section id="tab-chats" class="app-view p-3.5 space-y-3.5">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-sm font-black text-pink-400 flex items-center gap-2">
+                        <i class="fa-solid fa-comments"></i> Mensajes Privados
+                    </h2>
+                    <span class="text-[10px] bg-purple-900/60 text-pink-300 px-2 py-0.5 rounded-full font-bold">1:1 Seguro</span>
+                </div>
+                
+                <div id="chatsListContainer" class="space-y-2.5">
+                    <div class="bg-[#1f1635] border border-purple-900/50 p-3 rounded-2xl flex items-center justify-between hover:bg-[#2d234a] transition shadow" id="privateCard_Carlos M.">
+                        <div class="flex items-center gap-3 cursor-pointer" onclick="requireAuthAction(() => openUserProfile('Carlos M.', 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80', '0.4 km', ['Rumba Crossover en Provenza']))">
+                            <div class="relative">
+                                <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80" alt="Avatar" class="w-11 h-11 rounded-full object-cover border border-pink-500">
+                                <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#1f1635]"></div>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-xs text-white hover:text-pink-400">Carlos M.</h4>
+                                <p class="text-[11px] text-gray-300 truncate w-36" id="lastMsg_Carlos M.">¡Ey bro, armemos el parche hoy!</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="requireAuthAction(() => openChatDetail('Carlos M.'))" class="bg-purple-600 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold shadow hover:bg-purple-500">Hablar</button>
+                        </div>
+                    </div>
+
+                    <div class="bg-[#1f1635] border border-purple-900/50 p-3 rounded-2xl flex items-center justify-between hover:bg-[#2d234a] transition shadow" id="privateCard_Sofía R.">
+                        <div class="flex items-center gap-3 cursor-pointer" onclick="requireAuthAction(() => openUserProfile('Sofía R.', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80', '1.2 km', ['Cena y Vistas en Las Palmas']))">
+                            <div class="relative">
+                                <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80" alt="Avatar" class="w-11 h-11 rounded-full object-cover border border-purple-500">
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-xs text-white hover:text-pink-400">Sofía R.</h4>
+                                <p class="text-[11px] text-gray-400 truncate w-36" id="lastMsg_Sofía R.">¿A qué hora nos vemos?</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="requireAuthAction(() => openChatDetail('Sofía R.'))" class="bg-purple-600 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold shadow hover:bg-purple-500">Hablar</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 4: PERFIL -->
+            <section id="tab-miparche" class="app-view p-3.5 space-y-3.5">
+                <h2 class="text-sm font-black text-purple-300">Mi Perfil</h2>
+                
+                <!-- Tarjeta de Perfil Dinámica -->
+                <div id="profileCardContainer">
+                    <!-- Se renderiza dinámicamente según si es invitado o usuario registrado -->
+                </div>
+
+                <div id="profileAdminSection" class="bg-[#1f1635] border border-pink-500/30 p-3.5 rounded-2xl space-y-2.5 shadow">
+                    <h3 class="text-xs font-bold text-pink-400 flex items-center justify-between">
+                        <span><i class="fa-solid fa-shield-halved mr-1"></i> Mis Administraciones Exclusivas</span>
+                    </h3>
+                    <div class="space-y-2 text-xs">
+                        <div class="bg-[#120c22] p-2.5 rounded-xl flex items-center justify-between border border-purple-900/50">
+                            <span class="font-bold text-white">♾️ Parche Infinito</span>
+                            <span class="bg-pink-600/30 text-pink-300 border border-pink-500/50 px-2 py-0.5 rounded text-[10px] font-bold">MIEMBRO / ADMIN</span>
+                        </div>
+                        <div class="bg-[#120c22] p-2.5 rounded-xl flex items-center justify-between border border-purple-900/50">
+                            <span class="font-bold text-white">🔥 Únete al Parche</span>
+                            <span class="bg-pink-600/30 text-pink-300 border border-pink-500/50 px-2 py-0.5 rounded text-[10px] font-bold">MIEMBRO / ADMIN</span>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="text-xs font-bold text-purple-300 pt-1 flex items-center gap-1.5">
+                    <i class="fa-solid fa-photo-film text-pink-500"></i> Galería de Fotos Optimizadas
+                </h3>
+                <div class="grid grid-cols-2 gap-2" id="userMediaGallery">
+                    <div class="bg-[#1f1635] p-3 rounded-xl text-center text-[11px] text-gray-400 border border-purple-900/30 col-span-2">
+                        Aún no has subido fotos comprimidas.
+                    </div>
+                </div>
+
+                <!-- Botones de Acción al Final del Perfil (Cerrar Sesión & Eliminar Cuenta) -->
+                <div id="profileAccountActions" class="pt-4 space-y-2.5 border-t border-purple-900/40">
+                    <!-- Se llena en JS -->
+                </div>
+            </section>
+
+        </main>
+
+        <!-- INPUT DE IMÁGENES OCULTO (PÁGINA Y CHATS) -->
+        <input type="file" id="globalImageInput" accept="image/*" class="hidden" onchange="processAndUploadSelectedImage(event)">
+
+        <!-- MODAL AUTENTICACIÓN / REGISTRO / GOOGLE OAUTH -->
+        <div id="authModal" class="fixed inset-0 bg-black/90 z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-[#18122b] w-full max-w-sm rounded-3xl border border-purple-500/40 p-5 shadow-2xl space-y-4 text-center relative">
+                <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+                
+                <h2 class="text-2xl font-black bg-gradient-to-r from-pink-500 via-purple-400 to-indigo-400 bg-clip-text text-transparent">PÁRCHATE</h2>
+                <p id="authModalSubtext" class="text-xs text-purple-200">Para continuar y disfrutar de todas las funciones debes registrarte o iniciar sesión.</p>
+                
+                <!-- Botón Iniciar Sesión con Google API -->
+                <button onclick="loginWithGoogle()" class="w-full bg-white text-gray-900 font-bold py-2.5 px-4 rounded-xl text-xs shadow-lg flex items-center justify-center gap-2 hover:bg-gray-100 transition active:scale-95">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+                        <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.29v3.15C3.26 21.3 7.31 24 12 24z"/>
+                        <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.29c-.8 1.6-1.26 3.41-1.26 5.42s.46 3.82 1.26 5.42l3.99-3.15z"/>
+                        <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.58l3.99 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                    </svg>
+                    Iniciar Sesión con Google
+                </button>
+
+                <div class="flex items-center my-2">
+                    <div class="flex-1 border-t border-purple-900"></div>
+                    <span class="px-2 text-[10px] text-purple-400 font-bold">O REGISTRO BREVE</span>
+                    <div class="flex-1 border-t border-purple-900"></div>
+                </div>
+
+                <!-- Formulario Breve de Registro / Ingreso -->
+                <div class="space-y-2 text-left text-xs">
+                    <div>
+                        <label class="block text-[10px] text-purple-300 font-bold mb-1">Nombre Completo:</label>
+                        <input type="text" id="regNameInput" placeholder="Ej. Yair Romero" class="w-full bg-[#120c22] border border-purple-900 rounded-xl px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-pink-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-purple-300 font-bold mb-1">Correo Electrónico:</label>
+                        <input type="email" id="regEmailInput" placeholder="tu@correo.com" class="w-full bg-[#120c22] border border-purple-900 rounded-xl px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-pink-500">
+                    </div>
+                </div>
+
+                <button onclick="registerBriefUser()" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 text-white font-bold py-2.5 rounded-xl text-xs shadow-lg active:scale-95 transition">
+                    Registrarme y Continuar
+                </button>
+
+                <button onclick="enterAsAdminQuick()" class="w-full bg-purple-900/40 hover:bg-purple-900/70 border border-purple-500/30 text-purple-200 text-[11px] py-1.5 rounded-xl transition">
+                    ⚡ Modo Rápido (Demo Yair Admin)
+                </button>
+            </div>
+        </div>
+
+        <!-- MODAL CONFIRMACIÓN CERRAR SESIÓN -->
+        <div id="logoutConfirmModal" class="fixed inset-0 bg-black/85 z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-[#18122b] w-full max-w-xs rounded-3xl border border-purple-500/40 p-5 shadow-2xl text-center space-y-3.5">
+                <div class="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center text-xl mx-auto">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <h3 class="font-bold text-sm text-white">¿Deseas cerrar sesión?</h3>
+                <p class="text-[11px] text-gray-300 leading-relaxed">Tu cuenta quedará en modo invitado y requerirá inicio de sesión para realizar acciones.</p>
+                <div class="flex gap-2 pt-1">
+                    <button onclick="closeLogoutModal()" class="flex-1 bg-[#2d234a] text-gray-300 py-2 rounded-xl text-xs font-bold hover:bg-purple-900/50">Cancelar</button>
+                    <button onclick="executeLogout()" class="flex-1 bg-gradient-to-r from-amber-600 to-pink-600 text-white py-2 rounded-xl text-xs font-bold shadow hover:opacity-90">Sí, Cerrar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL CONFIRMACIÓN ELIMINAR CUENTA -->
+        <div id="deleteAccountConfirmModal" class="fixed inset-0 bg-black/90 z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-[#18122b] w-full max-w-xs rounded-3xl border border-red-500/50 p-5 shadow-2xl text-center space-y-3.5">
+                <div class="w-12 h-12 rounded-2xl bg-red-500/20 text-red-400 border border-red-500/40 flex items-center justify-center text-xl mx-auto">
+                    <i class="fa-solid fa-trash-can"></i>
+                </div>
+                <h3 class="font-bold text-sm text-red-400">¿Eliminar tu cuenta?</h3>
+                <p class="text-[11px] text-gray-300 leading-relaxed">¿Quieres eliminar esto? Se borrarán tus datos locales y preferencias de usuario en esta sesión.</p>
+                <div class="flex gap-2 pt-1">
+                    <button onclick="closeDeleteModal()" class="flex-1 bg-[#2d234a] text-gray-300 py-2 rounded-xl text-xs font-bold hover:bg-purple-900/50">Cancelar</button>
+                    <button onclick="executeDeleteAccount()" class="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-xl text-xs font-bold shadow">Sí, Eliminar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL OPCIONES DE MENSAJE (TOUCH / CLIC) -->
+        <div id="messageOptionsModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-[#18122b] w-full max-w-xs rounded-2xl border border-purple-500/40 p-4 shadow-2xl space-y-3">
+                <div class="flex justify-between items-center border-b border-purple-900/50 pb-2">
+                    <h3 class="font-bold text-xs text-pink-400">Opciones de Mensaje</h3>
+                    <button onclick="closeMessageOptions()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="space-y-1.5 text-xs">
+                    <button onclick="copyCurrentSelectedMessage()" class="w-full text-left px-3 py-2 rounded-xl bg-[#120c22] hover:bg-purple-900/50 text-purple-200 flex items-center gap-2">
+                        <i class="fa-solid fa-copy text-pink-400"></i> Copiar texto
+                    </button>
+                    <button onclick="setSingleMessageTimer()" class="w-full text-left px-3 py-2 rounded-xl bg-[#120c22] hover:bg-purple-900/50 text-amber-300 flex items-center gap-2">
+                        <i class="fa-solid fa-clock"></i> Poner temporizador
+                    </button>
+                    <button onclick="deleteSelectedMessage()" class="w-full text-left px-3 py-2 rounded-xl bg-red-950/40 border border-red-500/30 hover:bg-red-900/50 text-red-300 flex items-center gap-2">
+                        <i class="fa-solid fa-trash-can"></i> Eliminar mensaje
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL VER FOTO EFÍMERA (VER 1 VEZ) -->
+        <div id="ephemeralViewerModal" class="fixed inset-0 bg-black/95 z-50 hidden flex flex-col items-center justify-center p-4">
+            <div class="relative w-full max-w-sm flex flex-col items-center space-y-3">
+                <div class="bg-pink-600/30 border border-pink-500/50 text-pink-200 text-xs px-3 py-1 rounded-full font-bold flex items-center gap-1.5">
+                    <i class="fa-solid fa-eye text-pink-400"></i>
+                    <span id="ephemeralViewsCounter">Visualización Efímera</span>
+                </div>
+                <div class="w-full h-80 rounded-2xl overflow-hidden bg-black border border-purple-500/40 relative shadow-2xl flex items-center justify-center">
+                    <img id="ephemeralImageSrc" src="" class="w-full h-full object-contain">
+                </div>
+                <button onclick="closeEphemeralViewer()" class="bg-gradient-to-r from-pink-600 to-purple-600 text-white font-bold px-6 py-2.5 rounded-xl text-xs shadow-lg active:scale-95 transition">
+                    Cerrar Imagen
+                </button>
+            </div>
+        </div>
+
+        <!-- MODAL CREAR GRUPO EN RADAR -->
+        <div id="createGroupModal" class="fixed inset-0 bg-black/85 z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-[#18122b] w-full max-w-sm rounded-3xl border border-purple-500/40 p-5 shadow-2xl space-y-3.5">
+                <div class="flex justify-between items-center border-b border-purple-900/50 pb-2">
+                    <h3 class="font-black text-xs text-pink-400 uppercase"><i class="fa-solid fa-people-group mr-1"></i> Crear Grupo en Radar</h3>
+                    <button onclick="closeCreateGroupModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-base"></i></button>
+                </div>
+                
+                <div class="space-y-2.5 text-xs">
+                    <div>
+                        <label class="block text-[10px] text-purple-300 font-bold mb-1">Nombre del Grupo / Parche:</label>
+                        <input type="text" id="newGroupName" placeholder="Ej. Parchito Poblado Noche" class="w-full bg-[#120c22] border border-purple-900 rounded-xl px-3 py-2 text-white placeholder-gray-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-purple-300 font-bold mb-1">Emoji / Icono:</label>
+                        <input type="text" id="newGroupEmoji" placeholder="Ej. 🎉, 🍺, 💃" class="w-full bg-[#120c22] border border-purple-900 rounded-xl px-3 py-2 text-white placeholder-gray-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-purple-300 font-bold mb-1">Descripción Breve:</label>
+                        <input type="text" id="newGroupDesc" placeholder="Ej. Parche para tomar unas pola en Provenza" class="w-full bg-[#120c22] border border-purple-900 rounded-xl px-3 py-2 text-white placeholder-gray-500">
+                    </div>
+                </div>
+
+                <div class="flex gap-2 pt-2">
+                    <button onclick="closeCreateGroupModal()" class="flex-1 bg-[#2d234a] text-gray-300 py-2.5 rounded-xl font-bold text-xs">Cancelar</button>
+                    <button onclick="submitNewGroup()" class="flex-1 bg-gradient-to-r from-pink-600 to-purple-600 text-white py-2.5 rounded-xl font-bold shadow text-xs">Crear Parche</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL INVITAR PERSONAS CERCANAS DEL RADAR -->
+        <div id="invitePeopleModal" class="fixed inset-0 bg-black/85 z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-[#18122b] w-full max-w-sm rounded-3xl border border-purple-500/40 p-5 shadow-2xl space-y-3.5 overflow-y-auto max-h-[85vh]">
+                <div class="flex justify-between items-center border-b border-purple-900/50 pb-2">
+                    <h3 class="font-black text-xs text-pink-400 uppercase"><i class="fa-solid fa-user-plus mr-1"></i> Invitar Personas Cercanas</h3>
+                    <button onclick="closeInviteModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-base"></i></button>
+                </div>
+                <p class="text-[10px] text-purple-200">Invita a personas detectadas en el radar a unirse a este grupo:</p>
+                <div id="invitePeopleListContainer" class="space-y-2"></div>
+                <button onclick="closeInviteModal()" class="w-full bg-purple-900/60 hover:bg-purple-900 text-white py-2 rounded-xl text-xs font-bold transition">Listo</button>
+            </div>
+        </div>
+
+        <!-- MODAL SALA DE CHAT DE GRUPO -->
+        <div id="groupChatModal" class="fixed inset-0 bg-black/90 z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div class="bg-[#18122b] w-full max-w-md rounded-t-3xl sm:rounded-2xl border-t sm:border border-purple-500/30 flex flex-col shadow-2xl overflow-hidden h-[85vh]">
+                
+                <!-- Header del Grupo con Menú de 3 Puntos -->
+                <div class="p-3.5 border-b border-[#2d234a] flex justify-between items-center bg-[#1f1635] relative">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                        <div>
+                            <h3 id="groupChatHeaderTitle" class="font-bold text-xs text-white">Chat de Grupo</h3>
+                            <p class="text-[9px] text-pink-400" id="groupTimerStatus">Admite Stickers, GIFs y fotos del teclado nativo</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1 relative">
+                        <!-- Botón 3 Puntos -->
+                        <button onclick="toggleGroupOptionsMenu(event)" class="text-gray-300 hover:text-white p-2 rounded-xl bg-purple-900/40 border border-purple-500/30 text-xs">
+                            <i class="fa-solid fa-ellipsis-vertical"></i>
+                        </button>
+                        <button onclick="closeGroupChat()" class="text-gray-400 hover:text-white p-2"><i class="fa-solid fa-xmark text-base"></i></button>
+
+                        <!-- Menú Desplegable 3 Puntos Grupo -->
+                        <div id="groupOptionsMenu" class="hidden absolute right-0 top-10 w-48 bg-[#1f1635] border border-purple-500/40 rounded-2xl shadow-2xl z-50 p-1 space-y-1 text-xs">
+                            <button onclick="setChatTimer('group')" class="w-full text-left px-3 py-2 rounded-xl hover:bg-purple-900/50 text-purple-200 flex items-center gap-2">
+                                <i class="fa-solid fa-clock text-amber-400"></i> Mensajes temporales
+                            </button>
+                            <button onclick="clearChatHistory('group')" class="w-full text-left px-3 py-2 rounded-xl hover:bg-purple-900/50 text-pink-300 flex items-center gap-2">
+                                <i class="fa-solid fa-broom text-pink-400"></i> Vaciar chat
+                            </button>
+                            <button onclick="leaveCurrentGroup()" class="w-full text-left px-3 py-2 rounded-xl hover:bg-red-900/40 text-red-400 flex items-center gap-2 border-t border-purple-900/40">
+                                <i class="fa-solid fa-right-from-bracket"></i> Salir del grupo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lista de Mensajes -->
+                <div id="groupChatMessages" class="p-3.5 overflow-y-auto space-y-3 text-xs flex-1 bg-[#0f0c1b]"></div>
+
+                <!-- Barra de Enviar Mensaje (Habilitada para Teclado Nativo) -->
+                <div class="p-3 border-t border-[#2d234a] bg-[#1f1635] flex items-center gap-2">
+                    <!-- Botón Adjuntar Foto -->
+                    <button onclick="triggerPhotoUpload('group')" class="bg-purple-900/80 hover:bg-purple-800 border border-purple-500/40 text-pink-300 w-9 h-9 rounded-xl text-xs font-bold transition flex items-center justify-center shrink-0" title="Adjuntar Foto Comprimida">
+                        <i class="fa-solid fa-camera"></i>
+                    </button>
+
+                    <!-- Botón Ver 1 Vez Estilo WhatsApp ① -->
+                    <button type="button" id="groupViewOnceBtn" onclick="toggleViewOnceMode()" class="w-9 h-9 rounded-xl border border-purple-500/40 bg-[#120c22] text-pink-400 font-extrabold text-xs flex items-center justify-center transition shrink-0" title="Activar/Desactivar Ver 1 vez">
+                        ①
+                    </button>
+
+                    <!-- Input Enriquecido para Admitir Stickers/GIFs de Teclados Nativo -->
+                    <div id="groupMessageInput" contenteditable="true" role="textbox" aria-label="Escribe al grupo..." data-placeholder="Escribe al grupo..." class="flex-1 bg-[#120c22] border border-purple-900 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-pink-500 overflow-y-auto max-h-24 cursor-text"></div>
+                    
+                    <button onclick="sendGroupTextMessage()" class="bg-gradient-to-r from-pink-600 to-purple-600 text-white w-9 h-9 rounded-xl text-xs font-bold hover:opacity-90 transition flex items-center justify-center shrink-0"><i class="fa-solid fa-paper-plane"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL CHAT PRIVADO 1:1 -->
+        <div id="chatDetailModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div class="bg-[#18122b] w-full max-w-md rounded-t-3xl sm:rounded-2xl border-t sm:border border-purple-500/30 flex flex-col shadow-2xl overflow-hidden h-[80vh]">
+                
+                <!-- Header Chat Privado con 3 Puntos -->
+                <div class="p-3.5 border-b border-[#2d234a] flex justify-between items-center bg-[#1f1635] relative">
+                    <div class="flex items-center gap-2">
+                        <div class="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse"></div>
+                        <div>
+                            <h3 id="chatDetailTitle" class="font-bold text-xs text-white">Chat Privado</h3>
+                            <p class="text-[9px] text-pink-400" id="privateTimerStatus">Chat directo en vivo</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1 relative">
+                        <button onclick="togglePrivateOptionsMenu(event)" class="text-gray-300 hover:text-white p-2 rounded-xl bg-purple-900/40 border border-purple-500/30 text-xs">
+                            <i class="fa-solid fa-ellipsis-vertical"></i>
+                        </button>
+                        <button onclick="closeChatDetail()" class="text-gray-400 hover:text-white p-2"><i class="fa-solid fa-xmark text-base"></i></button>
+
+                        <!-- Menú Desplegable 3 Puntos Chat Privado -->
+                        <div id="privateOptionsMenu" class="hidden absolute right-0 top-10 w-48 bg-[#1f1635] border border-purple-500/40 rounded-2xl shadow-2xl z-50 p-1 space-y-1 text-xs">
+                            <button onclick="setChatTimer('private')" class="w-full text-left px-3 py-2 rounded-xl hover:bg-purple-900/50 text-purple-200 flex items-center gap-2">
+                                <i class="fa-solid fa-clock text-amber-400"></i> Mensajes temporales
+                            </button>
+                            <button onclick="clearChatHistory('private')" class="w-full text-left px-3 py-2 rounded-xl hover:bg-purple-900/50 text-pink-300 flex items-center gap-2">
+                                <i class="fa-solid fa-broom text-pink-400"></i> Vaciar chat
+                            </button>
+                            <button onclick="deletePrivateChat()" class="w-full text-left px-3 py-2 rounded-xl hover:bg-red-900/40 text-red-400 flex items-center gap-2 border-t border-purple-900/40">
+                                <i class="fa-solid fa-trash-can"></i> Eliminar chat
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mensajes Chat Privado -->
+                <div id="chatDetailMessages" class="p-3.5 overflow-y-auto space-y-3 text-xs flex-1 bg-[#0f0c1b]"></div>
+
+                <!-- Barra de Enviar Mensaje Privado -->
+                <div class="p-3 border-t border-[#2d234a] bg-[#1f1635] flex gap-2 items-center">
+                    <button onclick="triggerPhotoUpload('private')" class="bg-purple-900/80 text-pink-300 w-9 h-9 rounded-xl text-xs font-bold transition flex items-center justify-center shrink-0"><i class="fa-solid fa-camera"></i></button>
+                    
+                    <button type="button" id="privateViewOnceBtn" onclick="toggleViewOnceMode()" class="w-9 h-9 rounded-xl border border-purple-500/40 bg-[#120c22] text-pink-400 font-extrabold text-xs flex items-center justify-center transition shrink-0" title="Activar/Desactivar Ver 1 vez">
+                        ①
+                    </button>
+
+                    <div id="chatDetailInput" contenteditable="true" role="textbox" aria-label="Escribe un mensaje privado..." data-placeholder="Escribe un mensaje privado..." class="flex-1 bg-[#120c22] border border-purple-900 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-pink-500 overflow-y-auto max-h-24 cursor-text"></div>
+                    
+                    <button onclick="sendPrivateMessage()" class="bg-gradient-to-r from-pink-600 to-purple-600 text-white w-9 h-9 rounded-xl text-xs font-bold hover:opacity-90 transition flex items-center justify-center shrink-0"><i class="fa-solid fa-paper-plane"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL OPINO -->
+        <div id="opinoModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div class="bg-[#18122b] w-full max-w-md rounded-t-3xl sm:rounded-2xl border-t sm:border border-purple-500/30 flex flex-col shadow-2xl overflow-hidden max-h-[80vh]">
+                <div class="p-3.5 border-b border-[#2d234a] flex justify-between items-center bg-[#1f1635]">
+                    <h3 id="opinoTitle" class="font-bold text-xs text-purple-300 truncate pr-2">Sección Opino</h3>
+                    <button onclick="closeOpinoModal()" class="text-gray-400 hover:text-white p-1"><i class="fa-solid fa-xmark text-base"></i></button>
+                </div>
+                <div id="opinoMessages" class="p-3.5 overflow-y-auto space-y-2.5 text-xs flex-1">
+                    <div class="bg-[#2d234a] p-2.5 rounded-xl">
+                        <span class="font-bold text-pink-400 block mb-0.5 text-[10px]">Carlos M.</span>
+                        ¡Este sitio es una chimba, la atención es 10/10!
+                    </div>
+                </div>
+                <div class="p-3 border-t border-[#2d234a] bg-[#1f1635] flex gap-2">
+                    <input type="text" id="opinoInput" onkeydown="if(event.key==='Enter') sendOpino()" placeholder="Escribe tu opinión pública..." class="flex-1 bg-[#120c22] border border-purple-900 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-500">
+                    <button onclick="sendOpino()" class="bg-pink-600 px-3.5 py-2 rounded-xl text-xs font-bold hover:bg-pink-700 transition">Opinar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL VER PERFIL DE OTRO USUARIO -->
+        <div id="userProfileModal" class="fixed inset-0 bg-black/85 z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-[#18122b] w-full max-w-sm rounded-3xl border border-purple-500/40 p-5 shadow-2xl space-y-3.5 overflow-y-auto max-h-[85vh]">
+                <div class="flex justify-between items-center border-b border-purple-900/50 pb-2">
+                    <h3 class="font-black text-xs text-pink-400 uppercase">Perfil de Usuario</h3>
+                    <button onclick="closeUserProfile()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-base"></i></button>
+                </div>
+                <div class="flex flex-col items-center text-center space-y-2">
+                    <img id="modalProfileAvatar" src="" class="w-16 h-16 rounded-full object-cover border-2 border-pink-500 shadow-md">
+                    <div>
+                        <h4 id="modalProfileName" class="font-bold text-sm text-white"></h4>
+                        <p id="modalProfileDistance" class="text-[11px] text-pink-300 font-medium"></p>
+                    </div>
+                </div>
+                <div class="space-y-2 pt-1">
+                    <h5 class="text-[11px] font-bold text-purple-300 border-b border-purple-900/40 pb-1">📍 Parches a los que asiste:</h5>
+                    <div id="modalProfileEvents" class="space-y-1 text-xs text-gray-300"></div>
+                </div>
+                <button onclick="closeUserProfile()" class="w-full bg-purple-900/60 hover:bg-purple-900 text-white py-2 rounded-xl text-xs font-bold transition">Cerrar</button>
+            </div>
+        </div>
+
+        <!-- MODAL LISTA RADAR COMPLETA -->
+        <div id="fullRadarModal" class="fixed inset-0 bg-black/85 z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-[#18122b] w-full max-w-sm rounded-3xl border border-purple-500/40 p-5 shadow-2xl space-y-3.5 overflow-y-auto max-h-[85vh]">
+                <div class="flex justify-between items-center border-b border-purple-900/50 pb-2">
+                    <h3 class="font-black text-xs text-pink-400 uppercase">📡 Personas en Radar</h3>
+                    <button onclick="closeFullRadarModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-base"></i></button>
+                </div>
+                <div id="fullRadarListContainer" class="space-y-2"></div>
+                <button onclick="closeFullRadarModal()" class="w-full bg-purple-900/60 hover:bg-purple-900 text-white py-2 rounded-xl text-xs font-bold transition">Cerrar</button>
+            </div>
+        </div>
+
+        <!-- MODAL CREAR PARCHE RAPIDO -->
+        <div id="createParcheModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-[#18122b] w-full max-w-sm rounded-3xl border border-purple-500/40 p-5 shadow-2xl space-y-3.5">
+                <div class="flex justify-between items-center border-b border-purple-900/50 pb-2">
+                    <h3 class="font-black text-xs text-pink-400 uppercase tracking-wider"><i class="fa-solid fa-fire mr-1"></i> Crear Parche Rápido</h3>
+                    <button onclick="closeCreateModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-base"></i></button>
+                </div>
+                <div class="space-y-2.5 text-xs">
+                    <div>
+                        <label class="block text-[10px] text-purple-300 font-bold mb-1">Nombre del Lugar / Parche:</label>
+                        <input type="text" id="newParcheName" placeholder="Ej. Bar Discoteca Central" class="w-full bg-[#120c22] border border-purple-900 rounded-xl px-3 py-2 text-white placeholder-gray-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-purple-300 font-bold mb-1">Zona o Barrio:</label>
+                        <input type="text" id="newParcheZone" placeholder="Ej. Provenza, El Poblado" class="w-full bg-[#120c22] border border-purple-900 rounded-xl px-3 py-2 text-white placeholder-gray-500">
+                    </div>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button onclick="closeCreateModal()" class="flex-1 bg-[#2d234a] text-gray-300 py-2.5 rounded-xl font-bold text-xs">Cancelar</button>
+                    <button onclick="submitNewParche()" class="flex-1 bg-gradient-to-r from-pink-600 to-purple-600 text-white py-2.5 rounded-xl font-bold shadow text-xs">Publicar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navegación Inferior -->
+        <nav class="absolute bottom-0 left-0 right-0 bg-[#120c22]/95 backdrop-blur-md border-t border-[#2d234a] flex justify-around py-2.5 z-40">
+            <button onclick="switchTab('tab-descubrir')" id="nav-descubrir" class="flex flex-col items-center text-pink-500 text-[10px] font-bold transition">
+                <i class="fa-solid fa-fire text-base mb-0.5"></i><span>Top Fuego</span>
+            </button>
+            <button onclick="switchTab('tab-mapa')" id="nav-mapa" class="flex flex-col items-center text-gray-400 text-[10px] font-medium transition">
+                <i class="fa-solid fa-radar text-base mb-0.5"></i><span>Radar & Grupos</span>
+            </button>
+            <button onclick="switchTab('tab-chats')" id="nav-chats" class="flex flex-col items-center text-gray-400 text-[10px] font-medium transition relative">
+                <i class="fa-solid fa-comments text-base mb-0.5"></i><span>Chats</span>
+            </button>
+            <button onclick="switchTab('tab-miparche')" id="nav-miparche" class="flex flex-col items-center text-gray-400 text-[10px] font-medium transition">
+                <i class="fa-solid fa-user-circle text-base mb-0.5"></i><span>Perfil</span>
+            </button>
+        </nav>
+
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // ESTADO GLOBAL Y AUTENTICACIÓN
+        let currentUser = {
+            isGuest: true, // Inicia como invitado por defecto
+            name: "Invitado",
+            role: "Invitado",
+            email: "",
+            avatar: "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+        };
+
+        let currentUploadTarget = 'feed'; // 'feed', 'group', 'private'
+        let activeGroupId = 'parche-infinito';
+        let activePrivateUser = 'Carlos M.';
+        let isViewOnceActive = false; // Modo Ver 1 vez (Estilo WhatsApp)
+
+        // Memoria Persistente de Chats de Grupo
+        const groupChatsStore = {
+            'parche-infinito': [
+                { id: 'g1', sender: 'Carlos M.', text: '¡Bienvenidos a todos al parche oficial de Medellín! 🚀', time: '10:15 AM', type: 'text' }
+            ],
+            'unete-al-parche': [
+                { id: 'g2', sender: 'Sofía R.', text: '¿Quién para armar tardeo en Laureles hoy?', time: '11:20 AM', type: 'text' }
+            ]
+        };
+
+        // Memoria Persistente de Chats Privados
+        const privateChatsStore = {
+            'Carlos M.': [
+                { id: 'p1', sender: 'Carlos M.', text: '¡Ey bro, armemos el parche hoy!', time: 'Hace 5 min', type: 'text' }
+            ],
+            'Sofía R.': [
+                { id: 'p2', sender: 'Sofía R.', text: '¿A qué hora nos vemos?', time: 'Hace 10 min', type: 'text' }
+            ]
+        };
+
+        // Estado del Mensaje Seleccionado para Opciones
+        let selectedMessageRef = { id: null, type: null, context: null, text: '' };
+
+        // Base de Datos de Personas Cercanas en Radar
+        const mockRadarPeople = [
+            { id: '1', name: 'Carlos M.', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80', distanceKm: 0.4, events: ['Rumba Crossover en Provenza'] },
+            { id: '2', name: 'Andrés P.', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80', distanceKm: 0.8, events: ['Café Especial Laureles'] },
+            { id: '3', name: 'Sofía R.', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80', distanceKm: 1.2, events: ['Cena y Vistas en Las Palmas'] },
+            { id: '4', name: 'Valeria G.', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80', distanceKm: 1.5, events: ['Rumba Crossover en Provenza'] },
+            { id: '5', name: 'Mateo O.', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80', distanceKm: 8.5, events: ['Tardeo Sabaneta'] }
+        ];
+
+        // Memoria de Fotos Efímeras
+        const ephemeralPhotosMap = {};
+
+        let map = null;
+
+        // INICIALIZACIÓN
+        document.addEventListener('DOMContentLoaded', function() {
+            attachRichInputListeners('groupMessageInput', 'group');
+            attachRichInputListeners('chatDetailInput', 'private');
+            updateUserUI();
+            updateRadarRange(1.0);
+        });
+
+        // CONTROL DE ACCIONES DE USUARIO E INVITADO (OBLIGA A REGISTRARSE)
+        window.requireAuthAction = function(callback) {
+            if (currentUser.isGuest) {
+                openAuthModal();
+            } else {
+                callback();
+            }
+        };
+
+        window.openAuthModal = function() {
+            document.getElementById('authModal').classList.remove('hidden');
+        };
+
+        window.closeAuthModal = function() {
+            document.getElementById('authModal').classList.add('hidden');
+        };
+
+        // INICIAR SESIÓN CON GOOGLE API
+        window.loginWithGoogle = function() {
+            showToast("Conectando con la API de Google...", "fa-brands fa-google");
+            setTimeout(() => {
+                currentUser = {
+                    isGuest: false,
+                    name: "Yair Romero",
+                    role: "Owner / Admin",
+                    email: "yair.google@gmail.com",
+                    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
+                };
+                updateUserUI();
+                closeAuthModal();
+                showToast("¡Sesión iniciada con Google correctamente!", "fa-circle-check");
+            }, 800);
+        };
+
+        // REGISTRO BREVE
+        window.registerBriefUser = function() {
+            const name = document.getElementById('regNameInput').value.trim();
+            const email = document.getElementById('regEmailInput').value.trim();
+
+            if (!name || !email) {
+                showToast("Por favor completa tu nombre y correo para continuar", "fa-triangle-exclamation");
+                return;
+            }
+
+            currentUser = {
+                isGuest: false,
+                name: name,
+                role: "Miembro",
+                email: email,
+                avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80"
+            };
+
+            updateUserUI();
+            closeAuthModal();
+            showToast(`¡Bienvenido a Párchate, ${name}!`, "fa-circle-check");
+        };
+
+        // DEMO RÁPIDO YAIR ADMIN
+        window.enterAsAdminQuick = function() {
+            currentUser = {
+                isGuest: false,
+                name: "Yair Romero (Admin)",
+                role: "👑 Propietario & Admin",
+                email: "yair@parchate.app",
+                avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
+            };
+            updateUserUI();
+            closeAuthModal();
+            showToast("Iniciado como Yair (Admin)", "fa-shield-halved");
+        };
+
+        // ACTUALIZACIÓN GENERAL DE LA INTERFAZ SEGÚN ESTADO (GUEST / USER)
+        function updateUserUI() {
+            const statusText = document.getElementById('headerStatusText');
+            if (statusText) statusText.innerText = currentUser.isGuest ? 'Invitado' : currentUser.name;
+
+            renderProfileTab();
+        }
+
+        // RENDERIZAR VISTA DEL PERFIL
+        function renderProfileTab() {
+            const profileCard = document.getElementById('profileCardContainer');
+            const actionsContainer = document.getElementById('profileAccountActions');
+            if(!profileCard || !actionsContainer) return;
+
+            if (currentUser.isGuest) {
+                profileCard.innerHTML = `
+                    <div class="bg-[#1f1635] border border-pink-500/40 p-5 rounded-2xl text-center space-y-3 shadow-lg">
+                        <div class="w-16 h-16 rounded-full bg-purple-900/50 border-2 border-pink-500 flex items-center justify-center text-2xl mx-auto">
+                            👤
+                        </div>
+                        <div>
+                            <h3 class="font-black text-base text-white">Modo Invitado</h3>
+                            <p class="text-[11px] text-purple-200 mt-0.5">Estás navegando como invitado. Para publicar parches, enviar mensajes o unirte a grupos, regístrate.</p>
+                        </div>
+                        <button onclick="openAuthModal()" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 text-white font-bold py-2.5 rounded-xl text-xs shadow-lg active:scale-95 transition">
+                            <i class="fa-solid fa-user-plus mr-1"></i> Iniciar Sesión / Registrarse
+                        </button>
+                    </div>
+                `;
+                actionsContainer.innerHTML = '';
+            } else {
+                profileCard.innerHTML = `
+                    <div class="bg-[#1f1635] border border-purple-500/30 p-4 rounded-2xl space-y-3 shadow-lg">
+                        <div class="flex items-center gap-3">
+                            <div class="relative">
+                                <img id="userAvatarPreview" src="${currentUser.avatar}" alt="Foto Perfil" class="w-16 h-16 rounded-full object-cover border-2 border-pink-500">
+                                <label class="absolute bottom-0 right-0 bg-pink-600 text-white rounded-full p-1.5 text-[9px] cursor-pointer shadow">
+                                    <i class="fa-solid fa-camera"></i>
+                                    <input type="file" accept="image/*" class="hidden" onchange="updateProfilePhoto(event)">
+                                </label>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <input type="text" id="userNameInput" value="${currentUser.name}" onchange="saveProfileInfo()" class="bg-[#120c22] text-xs font-bold text-white px-2.5 py-1 rounded-xl border border-purple-900 w-full mb-1 truncate">
+                                <input type="text" id="userStatusInput" value="${currentUser.role}" onchange="saveProfileInfo()" class="bg-[#120c22] text-[10px] text-gray-300 px-2.5 py-1 rounded-xl border border-purple-900 w-full">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-2 bg-[#120c22] p-2.5 rounded-xl border border-purple-900/50 text-center">
+                            <div>
+                                <span class="block font-black text-sm text-pink-400" id="followersCount">1,840</span>
+                                <span class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Seguidores</span>
+                            </div>
+                            <div class="border-x border-purple-900/50">
+                                <span class="block font-black text-sm text-purple-300" id="followingCount">320</span>
+                                <span class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Siguiendo</span>
+                            </div>
+                            <div>
+                                <span class="block font-black text-sm text-indigo-400" id="friendsCount">2,150</span>
+                                <span class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Amigos</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Botones Cerrar Sesión y Eliminar Cuenta al final de la vista de mi perfil
+                actionsContainer.innerHTML = `
+                    <button onclick="confirmLogout()" class="w-full bg-[#120c22] hover:bg-amber-950/40 border border-amber-500/40 text-amber-300 py-3 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 shadow">
+                        <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
+                    </button>
+                    <button onclick="confirmDeleteAccount()" class="w-full bg-red-950/30 hover:bg-red-900/40 border border-red-500/40 text-red-400 py-3 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 shadow">
+                        <i class="fa-solid fa-trash-can"></i> Eliminar Cuenta
+                    </button>
+                `;
+            }
+        }
+
+        // CONFIRMACIÓN Y EJECUCIÓN DE CERRAR SESIÓN CON VIBRACIÓN
+        window.confirmLogout = function() {
+            document.getElementById('logoutConfirmModal').classList.remove('hidden');
+        };
+
+        window.closeLogoutModal = function() {
+            document.getElementById('logoutConfirmModal').classList.add('hidden');
+        };
+
+        window.executeLogout = function() {
+            // Vibrar dispositivo si está soportado
+            if ('vibrate' in navigator) {
+                try { navigator.vibrate([150, 80, 150]); } catch(e){}
+            }
+
+            currentUser = {
+                isGuest: true,
+                name: "Invitado",
+                role: "Invitado",
+                email: "",
+                avatar: "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+            };
+
+            closeLogoutModal();
+            updateUserUI();
+            showToast("⚠️ Sesión cerrada. Has ingresado como Invitado.", "fa-right-from-bracket");
+        };
+
+        // CONFIRMACIÓN Y EJECUCIÓN DE ELIMINAR CUENTA
+        window.confirmDeleteAccount = function() {
+            document.getElementById('deleteAccountConfirmModal').classList.remove('hidden');
+        };
+
+        window.closeDeleteModal = function() {
+            document.getElementById('deleteAccountConfirmModal').classList.add('hidden');
+        };
+
+        window.executeDeleteAccount = function() {
+            if ('vibrate' in navigator) {
+                try { navigator.vibrate([200, 100, 200]); } catch(e){}
+            }
+
+            currentUser = {
+                isGuest: true,
+                name: "Invitado",
+                role: "Invitado",
+                email: "",
+                avatar: "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+            };
+
+            closeDeleteModal();
+            updateUserUI();
+            showToast("🗑️ Tu cuenta ha sido eliminada con éxito.", "fa-check-double");
+        };
+
+        window.checkAuthAndOpenProfile = function() {
+            switchTab('tab-miparche');
+        };
+
+        // --- SOPORTE PARA STICKERS Y GIFS DESDE EL TECLADO NATIVO ---
+        function attachRichInputListeners(elementId, target) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+
+            el.addEventListener('paste', async function(e) {
+                const clipboardData = e.clipboardData || window.clipboardData;
+                if (!clipboardData) return;
+
+                const items = clipboardData.items;
+                if (items) {
+                    for (let i = 0; i < items.length; i++) {
+                        if (items[i].type.indexOf('image') !== -1) {
+                            e.preventDefault();
+                            const file = items[i].getAsFile();
+                            if (file) {
+                                await processPastedImageFile(file, target);
+                                el.innerHTML = '';
+                                return;
+                            }
+                        }
+                    }
+                }
+            });
+
+            el.addEventListener('input', function() {
+                const imgs = el.getElementsByTagName('img');
+                if (imgs.length > 0) {
+                    const imgSrc = imgs[0].src;
+                    el.innerHTML = '';
+                    processPastedImageFile(imgSrc, target);
+                }
+            });
+
+            el.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (target === 'group') sendGroupTextMessage();
+                    else if (target === 'private') sendPrivateMessage();
+                }
+            });
+        }
+
+        async function processPastedImageFile(fileOrBlobOrUrl, target) {
+            let imageUrl = '';
+            if (typeof fileOrBlobOrUrl === 'string') {
+                imageUrl = fileOrBlobOrUrl;
+            } else if (fileOrBlobOrUrl instanceof File || fileOrBlobOrUrl instanceof Blob) {
+                imageUrl = await compressImageFileFast(fileOrBlobOrUrl, 800, 0.75);
+            }
+            
+            if (!imageUrl) return;
+
+            if (target === 'group') {
+                const msgObj = {
+                    id: 'm_' + Date.now(),
+                    sender: currentUser.name,
+                    imageUrl: imageUrl,
+                    viewType: isViewOnceActive ? 'once' : 'normal',
+                    time: 'Ahora',
+                    type: 'photo'
+                };
+                if (!groupChatsStore[activeGroupId]) groupChatsStore[activeGroupId] = [];
+                groupChatsStore[activeGroupId].push(msgObj);
+                renderGroupMessages(activeGroupId);
+                showToast("Sticker / GIF enviado", "fa-face-smile");
+            } else if (target === 'private') {
+                const msgObj = {
+                    id: 'p_' + Date.now(),
+                    sender: 'Tú',
+                    imageUrl: imageUrl,
+                    viewType: isViewOnceActive ? 'once' : 'normal',
+                    time: 'Ahora',
+                    type: 'photo'
+                };
+                if (!privateChatsStore[activePrivateUser]) privateChatsStore[activePrivateUser] = [];
+                privateChatsStore[activePrivateUser].push(msgObj);
+                renderPrivateMessages(activePrivateUser);
+                showToast("Sticker / GIF enviado", "fa-face-smile");
+            }
+            
+            if (isViewOnceActive) toggleViewOnceMode();
+        }
+
+        // TOAST NOTIFICACIÓN
+        function showToast(message, icon = 'fa-check-circle') {
+            const toast = document.getElementById('toastNotification');
+            const toastText = document.getElementById('toastText');
+            const toastIcon = document.getElementById('toastIcon');
+            if(!toast) return;
+            toastText.innerText = message;
+            toastIcon.className = `fa-solid ${icon}`;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        // DROPDOWNS Y MENÚS
+        function closeAllDropdowns(e) {
+            const gMenu = document.getElementById('groupOptionsMenu');
+            const pMenu = document.getElementById('privateOptionsMenu');
+            if(gMenu && !gMenu.contains(e.target) && !e.target.closest('button[onclick*="toggleGroupOptionsMenu"]')) {
+                gMenu.classList.add('hidden');
+            }
+            if(pMenu && !pMenu.contains(e.target) && !e.target.closest('button[onclick*="togglePrivateOptionsMenu"]')) {
+                pMenu.classList.add('hidden');
+            }
+        }
+
+        window.toggleGroupOptionsMenu = function(e) {
+            e.stopPropagation();
+            const menu = document.getElementById('groupOptionsMenu');
+            if(menu) menu.classList.toggle('hidden');
+        };
+
+        window.togglePrivateOptionsMenu = function(e) {
+            e.stopPropagation();
+            const menu = document.getElementById('privateOptionsMenu');
+            if(menu) menu.classList.toggle('hidden');
+        };
+
+        // COMPRESIÓN DE IMÁGENES
+        async function compressImageFileFast(file, maxWidth = 800, quality = 0.7) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.src = e.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > maxWidth || height > maxWidth) {
+                            if (width > height) {
+                                height = Math.round((height * maxWidth) / width);
+                                width = maxWidth;
+                            } else {
+                                width = Math.round((width * maxWidth) / height);
+                                height = maxWidth;
+                            }
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        canvas.toBlob((blob) => {
+                            if (blob) {
+                                resolve(URL.createObjectURL(blob));
+                            } else {
+                                resolve(e.target.result);
+                            }
+                        }, 'image/jpeg', quality);
+                    };
+                    img.onerror = () => resolve(e.target.result);
+                };
+                reader.onerror = (err) => reject(err);
+            });
+        }
+
+        window.triggerPhotoUpload = function(target) {
+            currentUploadTarget = target;
+            const input = document.getElementById('globalImageInput');
+            if(input) input.click();
+        };
+
+        window.processAndUploadSelectedImage = async function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (file.type.startsWith('video/')) {
+                showToast("🚫 Solo se permiten fotos. Los videos están bloqueados.", "fa-triangle-exclamation");
+                event.target.value = '';
+                return;
+            }
+
+            try {
+                const imageUrl = await compressImageFileFast(file, 800, 0.75);
+
+                if (currentUploadTarget === 'group') {
+                    finishGroupPhotoUpload('m_' + Date.now(), imageUrl, isViewOnceActive ? 'once' : 'normal');
+                } else if (currentUploadTarget === 'private') {
+                    finishPrivatePhotoUpload('p_' + Date.now(), imageUrl, isViewOnceActive ? 'once' : 'normal');
+                } else if (currentUploadTarget === 'feed') {
+                    shareToGlobalGame("Foto de Parche en Vivo", imageUrl, "Provenza, Medellín");
+                    showToast("¡Foto publicada en el parche!", "fa-check");
+                }
+
+                if (isViewOnceActive) toggleViewOnceMode();
+
+            } catch (err) {
+                showToast("Error al procesar foto", "fa-xmark");
+            } finally {
+                event.target.value = '';
+            }
+        };
+
+        function finishGroupPhotoUpload(msgId, imageUrl, viewType) {
+            const msgObj = {
+                id: msgId,
+                sender: currentUser.name,
+                imageUrl: imageUrl,
+                viewType: viewType,
+                time: 'Ahora',
+                type: 'photo'
+            };
+
+            if (!groupChatsStore[activeGroupId]) groupChatsStore[activeGroupId] = [];
+            groupChatsStore[activeGroupId].push(msgObj);
+            renderGroupMessages(activeGroupId);
+        }
+
+        function finishPrivatePhotoUpload(msgId, imageUrl, viewType) {
+            const msgObj = {
+                id: msgId,
+                sender: 'Tú',
+                imageUrl: imageUrl,
+                viewType: viewType,
+                time: 'Ahora',
+                type: 'photo'
+            };
+
+            if (!privateChatsStore[activePrivateUser]) privateChatsStore[activePrivateUser] = [];
+            privateChatsStore[activePrivateUser].push(msgObj);
+            renderPrivateMessages(activePrivateUser);
+        }
+
+        // FOTOS EFÍMERAS
+        function createEphemeralPhotoItem(imageUrl, viewType) {
+            const photoId = 'eph_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+            ephemeralPhotosMap[photoId] = { url: imageUrl, viewsLeft: 1 };
+
+            return `
+                <div id="wrapper_${photoId}" class="my-1.5">
+                    <button onclick="openEphemeralPhoto('${photoId}')" class="bg-gradient-to-r from-pink-900/80 to-purple-900/80 border border-pink-500/50 text-pink-200 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow hover:opacity-90 transition">
+                        <i class="fa-solid fa-eye text-pink-400"></i>
+                        <span>Foto Efímera (Ver 1 vez)</span>
+                    </button>
+                </div>
+            `;
+        }
+
+        window.openEphemeralPhoto = function(photoId) {
+            const item = ephemeralPhotosMap[photoId];
+            if (!item || item.viewsLeft <= 0) {
+                showToast("🔒 Esta foto ya expiró.", "fa-lock");
+                return;
+            }
+
+            item.viewsLeft--;
+            document.getElementById('ephemeralImageSrc').src = item.url;
+            document.getElementById('ephemeralViewsCounter').innerText = `Visualizaciones restantes: ${item.viewsLeft}`;
+            document.getElementById('ephemeralViewerModal').classList.remove('hidden');
+
+            if (item.viewsLeft <= 0) {
+                const wrapper = document.getElementById(`wrapper_${photoId}`);
+                if (wrapper) {
+                    wrapper.innerHTML = `
+                        <div class="bg-gray-900/80 border border-gray-700 text-gray-500 px-3 py-1.5 rounded-xl text-[11px] font-bold inline-flex items-center gap-1.5">
+                            <i class="fa-solid fa-lock"></i> Foto expirada
+                        </div>
+                    `;
+                }
+            }
+        };
+
+        window.closeEphemeralViewer = function() {
+            document.getElementById('ephemeralViewerModal').classList.add('hidden');
+        };
+
+        // MODO VER 1 VEZ
+        window.toggleViewOnceMode = function() {
+            isViewOnceActive = !isViewOnceActive;
+            const groupBtn = document.getElementById('groupViewOnceBtn');
+            const privateBtn = document.getElementById('privateViewOnceBtn');
+
+            [groupBtn, privateBtn].forEach(btn => {
+                if(btn) {
+                    if(isViewOnceActive) {
+                        btn.classList.add('once-active');
+                    } else {
+                        btn.classList.remove('once-active');
+                    }
+                }
+            });
+
+            showToast(isViewOnceActive ? "Modo Ver 1 vez activado" : "Modo foto normal activado", "fa-eye");
+        };
+
+        // SALAS DE CHAT
+        window.openGroupChat = function(groupId, groupTitle) {
+            activeGroupId = groupId;
+            document.getElementById('groupChatHeaderTitle').innerText = groupTitle;
+            renderGroupMessages(groupId);
+            document.getElementById('groupChatModal').classList.remove('hidden');
+            setTimeout(() => attachRichInputListeners('groupMessageInput', 'group'), 100);
+        };
+
+        window.closeGroupChat = function() {
+            document.getElementById('groupChatModal').classList.add('hidden');
+        };
+
+        function renderGroupMessages(groupId) {
+            const container = document.getElementById('groupChatMessages');
+            if(!container) return;
+            container.innerHTML = '';
+
+            const msgs = groupChatsStore[groupId] || [];
+            msgs.forEach(m => {
+                const isMe = m.sender === currentUser.name || m.sender.includes('Tú');
+                let content = '';
+
+                if (m.type === 'photo') {
+                    content = m.viewType === 'once' ? createEphemeralPhotoItem(m.imageUrl, 'once') : `<img src="${m.imageUrl}" class="w-48 h-36 object-cover rounded-xl mt-1 border border-purple-500/30">`;
+                } else {
+                    content = `<p class="text-gray-200">${m.text}</p>`;
+                }
+
+                container.insertAdjacentHTML('beforeend', `
+                    <div id="${m.id}" onclick="openMessageOptions('${m.id}', '${m.type}', 'group')" class="p-2.5 rounded-2xl ${isMe ? 'bg-purple-900/60 rounded-tr-none ml-auto border border-purple-500/40 text-right' : 'bg-[#1f1635] rounded-tl-none border border-purple-900/40'} max-w-[85%] cursor-pointer hover:opacity-95 transition">
+                        <span class="font-bold text-pink-400 block text-[10px]">${m.sender}</span>
+                        ${content}
+                        <span class="text-[9px] text-gray-400 mt-1 block">${m.time}</span>
+                    </div>
+                `);
+            });
+
+            container.scrollTop = container.scrollHeight;
+        }
+
+        window.sendGroupTextMessage = function() {
+            const input = document.getElementById('groupMessageInput');
+            if (!input) return;
+
+            const text = input.innerText.trim();
+            if (!text) return;
+
+            const msgObj = {
+                id: 'm_' + Date.now(),
+                sender: currentUser.name,
+                text: text,
+                time: 'Ahora',
+                type: 'text'
+            };
+
+            if (!groupChatsStore[activeGroupId]) groupChatsStore[activeGroupId] = [];
+            groupChatsStore[activeGroupId].push(msgObj);
+
+            input.innerHTML = '';
+            renderGroupMessages(activeGroupId);
+        };
+
+        window.openChatDetail = function(userName) {
+            activePrivateUser = userName;
+            document.getElementById('chatDetailTitle').innerText = `Chat Privado con ${userName}`;
+            renderPrivateMessages(userName);
+            document.getElementById('chatDetailModal').classList.remove('hidden');
+            setTimeout(() => attachRichInputListeners('chatDetailInput', 'private'), 100);
+        };
+
+        window.closeChatDetail = function() {
+            document.getElementById('chatDetailModal').classList.add('hidden');
+        };
+
+        function renderPrivateMessages(userName) {
+            const container = document.getElementById('chatDetailMessages');
+            if(!container) return;
+            container.innerHTML = '';
+
+            const msgs = privateChatsStore[userName] || [];
+            msgs.forEach(m => {
+                const isMe = m.sender === 'Tú' || m.sender === currentUser.name;
+                let content = '';
+
+                if (m.type === 'photo') {
+                    content = m.viewType === 'once' ? createEphemeralPhotoItem(m.imageUrl, 'once') : `<img src="${m.imageUrl}" class="w-44 h-32 object-cover rounded-xl mt-1 border border-purple-500/30">`;
+                } else {
+                    content = `<p class="text-gray-200">${m.text}</p>`;
+                }
+
+                container.insertAdjacentHTML('beforeend', `
+                    <div id="${m.id}" onclick="openMessageOptions('${m.id}', '${m.type}', 'private')" class="p-2.5 rounded-2xl ${isMe ? 'bg-purple-900/60 rounded-tr-none ml-auto border border-purple-500/40 text-right' : 'bg-[#1f1635] rounded-tl-none border border-purple-900/40'} max-w-[80%] cursor-pointer hover:opacity-95 transition">
+                        <span class="font-bold text-pink-400 block text-[10px]">${m.sender}</span>
+                        ${content}
+                        <span class="text-[9px] text-gray-400 mt-1 block">${m.time}</span>
+                    </div>
+                `);
+            });
+
+            container.scrollTop = container.scrollHeight;
+        }
+
+        window.sendPrivateMessage = function() {
+            const input = document.getElementById('chatDetailInput');
+            if (!input) return;
+
+            const text = input.innerText.trim();
+            if (!text) return;
+
+            const msgObj = {
+                id: 'p_' + Date.now(),
+                sender: 'Tú',
+                text: text,
+                time: 'Ahora',
+                type: 'text'
+            };
+
+            if (!privateChatsStore[activePrivateUser]) privateChatsStore[activePrivateUser] = [];
+            privateChatsStore[activePrivateUser].push(msgObj);
+
+            input.innerHTML = '';
+            renderPrivateMessages(activePrivateUser);
+        };
+
+        // OPCIONES MENSAJES
+        window.openMessageOptions = function(id, type, context) {
+            selectedMessageRef = { id, type, context };
+            document.getElementById('messageOptionsModal').classList.remove('hidden');
+        };
+
+        window.closeMessageOptions = function() {
+            document.getElementById('messageOptionsModal').classList.add('hidden');
+        };
+
+        window.deleteSelectedMessage = function() {
+            if (!selectedMessageRef.id) return;
+            const { id, context } = selectedMessageRef;
+
+            if (context === 'group') {
+                groupChatsStore[activeGroupId] = (groupChatsStore[activeGroupId] || []).filter(m => m.id !== id);
+                renderGroupMessages(activeGroupId);
+            } else {
+                privateChatsStore[activePrivateUser] = (privateChatsStore[activePrivateUser] || []).filter(m => m.id !== id);
+                renderPrivateMessages(activePrivateUser);
+            }
+
+            closeMessageOptions();
+            showToast("Mensaje eliminado", "fa-trash-can");
+        };
+
+        window.copyCurrentSelectedMessage = function() {
+            showToast("Texto copiado", "fa-copy");
+            closeMessageOptions();
+        };
+
+        window.setSingleMessageTimer = function() {
+            showToast("Temporizador de mensaje activado", "fa-clock");
+            closeMessageOptions();
+        };
+
+        // NAVEGACIÓN DE TABS
+        window.switchTab = function(tabId) {
+            document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
+            const targetView = document.getElementById(tabId);
+            if(targetView) targetView.classList.add('active');
+
+            document.querySelectorAll('nav button').forEach(b => {
+                b.className = "flex flex-col items-center text-gray-400 text-[10px] font-medium transition";
+            });
+
+            const navBtn = document.getElementById('nav-' + tabId.replace('tab-', ''));
+            if(navBtn) {
+                navBtn.className = "flex flex-col items-center text-pink-500 text-[10px] font-bold transition";
+            }
+        };
+
+        // SUBTABS DE RADAR
+        window.switchRadarSubTab = function(type) {
+            const btnPersonas = document.getElementById('subtab-btn-personas');
+            const btnGrupos = document.getElementById('subtab-btn-grupos');
+            const personasView = document.getElementById('radarSubTabPersonas');
+            const gruposView = document.getElementById('radarSubTabGrupos');
+
+            if (type === 'personas') {
+                btnPersonas.className = "flex-1 py-2 rounded-lg font-bold bg-pink-600 text-white transition shadow";
+                btnGrupos.className = "flex-1 py-2 rounded-lg font-medium text-gray-400 transition";
+                personasView.classList.remove('hidden');
+                gruposView.classList.add('hidden');
+            } else {
+                btnGrupos.className = "flex-1 py-2 rounded-lg font-bold bg-pink-600 text-white transition shadow";
+                btnPersonas.className = "flex-1 py-2 rounded-lg font-medium text-gray-400 transition";
+                gruposView.classList.remove('hidden');
+                personasView.classList.add('hidden');
+            }
+        };
+
+        // RADAR DE CERCANÍA SLIDER
+        window.updateRadarRange = function(kmVal) {
+            const valNum = parseFloat(kmVal);
+            let displayText = valNum < 1 ? `${Math.round(valNum * 1000)} m` : `${valNum.toFixed(1)} km`;
+            const displayEl = document.getElementById('rangeKmValueDisplay');
+            if(displayEl) displayEl.innerText = displayText;
+
+            const carousel = document.getElementById('radarCarousel');
+            if (!carousel) return;
+            carousel.innerHTML = '';
+
+            const filteredPeople = mockRadarPeople.filter(p => p.distanceKm <= valNum);
+            const countEl = document.getElementById('radarCountNum');
+            if(countEl) countEl.innerText = filteredPeople.length;
+
+            if (filteredPeople.length === 0) {
+                carousel.innerHTML = `<div class="text-[11px] text-gray-400 py-2">No hay personas registradas a menos de ${displayText}.</div>`;
+            } else {
+                filteredPeople.forEach(p => {
+                    let pDist = p.distanceKm < 1 ? `${Math.round(p.distanceKm * 1000)}m` : `${p.distanceKm}km`;
+                    carousel.innerHTML += `
+                        <div class="flex flex-col items-center bg-[#1f1635] border border-purple-900/50 p-2.5 rounded-2xl min-w-[85px] cursor-pointer hover:border-pink-500 transition shadow" onclick="requireAuthAction(() => openUserProfile('${p.name}', '${p.avatar}', '${pDist}', ${JSON.stringify(p.events).replace(/"/g, '&quot;')}))">
+                            <div class="relative mb-1">
+                                <img src="${p.avatar}" class="w-12 h-12 rounded-full object-cover border-2 border-pink-500">
+                                <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#1f1635]"></div>
+                            </div>
+                            <span class="font-bold text-[11px] text-white truncate w-20 text-center">${p.name}</span>
+                            <span class="text-[9px] text-pink-400 font-bold">${pDist}</span>
+                        </div>
+                    `;
+                });
+            }
+        };
+
+        // MODAL CREAR GRUPO
+        window.openCreateGroupModal = function() {
+            document.getElementById('createGroupModal').classList.remove('hidden');
+        };
+
+        window.closeCreateGroupModal = function() {
+            document.getElementById('createGroupModal').classList.add('hidden');
+        };
+
+        window.submitNewGroup = function() {
+            const name = document.getElementById('newGroupName').value.trim();
+            const emoji = document.getElementById('newGroupEmoji').value.trim() || '🎉';
+            const desc = document.getElementById('newGroupDesc').value.trim() || 'Parche en Radar';
+
+            if (!name) return;
+
+            const groupId = 'group_' + Date.now();
+            groupChatsStore[groupId] = [];
+
+            const container = document.getElementById('groupsRadarContainer');
+            container.insertAdjacentHTML('beforeend', `
+                <div class="bg-[#1f1635] border border-purple-500/40 rounded-2xl p-3.5 shadow-xl relative overflow-hidden" id="groupCard_${groupId}">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-pink-600 to-purple-600 flex items-center justify-center text-xl font-black shadow-lg">
+                                ${emoji}
+                            </div>
+                            <div>
+                                <h3 class="font-black text-sm text-white flex items-center gap-1.5">
+                                    ${name}
+                                    <span class="bg-pink-600/30 border border-pink-500 text-pink-300 text-[8px] px-1.5 py-0.5 rounded-md font-bold uppercase">ADMIN: TÚ</span>
+                                </h3>
+                                <p class="text-[10px] text-purple-200">${desc}</p>
+                            </div>
+                        </div>
+                        <span class="bg-green-500/20 text-green-400 border border-green-500/40 text-[9px] px-2 py-0.5 rounded-full font-bold">1 Miembro</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="openGroupChat('${groupId}', '${name} ${emoji}')" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-xl text-xs font-bold shadow transition flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-comments"></i> Entrar al Chat
+                        </button>
+                    </div>
+                </div>
+            `);
+
+            closeCreateGroupModal();
+            showToast(`¡Grupo "${name}" creado!`, "fa-check");
+        };
+
+        // DIVERSAS UTILIDADES
+        window.openExternalNav = function(loc) {
+            window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc)}`, '_blank');
+        };
+
+        window.toggleAxFuego = function(id) {
+            const el = document.getElementById(`count-${id}`);
+            if(el) el.innerText = parseInt(el.innerText) + 1;
+            showToast("🔥 ¡Le diste a fuego!", "fa-fire");
+        };
+
+        window.openOpinoModal = function(title) {
+            document.getElementById('opinoTitle').innerText = title;
+            document.getElementById('opinoModal').classList.remove('hidden');
+        };
+
+        window.closeOpinoModal = function() {
+            document.getElementById('opinoModal').classList.add('hidden');
+        };
+
+        window.sendOpino = function() {
+            const input = document.getElementById('opinoInput');
+            if(!input || !input.value.trim()) return;
+
+            document.getElementById('opinoMessages').insertAdjacentHTML('beforeend', `
+                <div class="bg-[#2d234a] p-2.5 rounded-xl border border-purple-500/30">
+                    <span class="font-bold text-pink-400 block mb-0.5 text-[10px]">${currentUser.name}</span>
+                    ${input.value.trim()}
+                </div>
+            `);
+
+            input.value = '';
+        };
+
+        window.shareToGlobalGame = function(title, imgUrl, location) {
+            showToast("¡Parche republicado!", "fa-retweet");
+        };
+
+        window.openCreateModal = function() {
+            document.getElementById('createParcheModal').classList.remove('hidden');
+        };
+
+        window.closeCreateModal = function() {
+            document.getElementById('createParcheModal').classList.add('hidden');
+        };
+
+        window.submitNewParche = function() {
+            const name = document.getElementById('newParcheName').value.trim();
+            if(!name) return;
+            closeCreateModal();
+            showToast("¡Parche creado exitosamente!", "fa-check");
+        };
+
+        window.requestNotificationPermission = function() {
+            showToast("🔔 Notificaciones activadas", "fa-bell");
+        };
+
+        window.askGemini = function() {
+            const res = document.getElementById('geminiResponse');
+            if(res) {
+                res.classList.remove('hidden');
+                res.innerText = "🤖 Gemini Parchate: Recomiendo Provenza hoy para cócteles 2x1 y Laureles para un café de especialidad tardeando.";
+            }
+        };
+
+        window.filterFeed = function(type) {
+            showToast(`Filtrado por: ${type}`, "fa-filter");
+        };
+
+        window.switchFeedView = function(view) {
+            const lista = document.getElementById('feed-lista-view');
+            const mapa = document.getElementById('feed-mapa-view');
+            if(view === 'lista') {
+                lista.classList.remove('hidden');
+                mapa.classList.add('hidden');
+            } else {
+                lista.classList.add('hidden');
+                mapa.classList.remove('hidden');
+            }
+        };
+    </script>
+<script>
+/* ===== PÁRCHATE · SUPABASE ===== */
+/* BUSCA ESTA LÍNEA Y PEGA TU PROJECT URL (ej: https://abcdxyz.supabase.co) */
+const SB_URL='https://ofqdizboaexkjjhwtmgs.supabase.co';
+const SB_KEY='sb_publishable_pfLexW8EDmF9-_SRjaiKWQ_y16Yar5f';
+(function(){
+'use strict';
+const sb=/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(SB_URL)&&window.supabase?window.supabase.createClient(SB_URL,SB_KEY,{auth:{flowType:(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform())?'pkce':'implicit'}}):null;
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm=s=>String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+const v=id=>(document.getElementById(id)?.value||'').trim();
+const AV='https://cdn-icons-png.flaticon.com/512/149/149071.png',NOSB='Falta pegar tu Project URL de Supabase en el archivo';
+let parches=[],filter='todo',me=null,uid=null,lmap=null,lg=null,radarOn=true,curP=null,groups=[],last='';
+const toast=(m,i)=>showToast(m,i||'fa-circle-info');
+const hv=(a,b,c,d)=>{const r=x=>x*Math.PI/180;return 12742*Math.asin(Math.sqrt(Math.sin(r(c-a)/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(r(d-b)/2)**2))};
+const dist=p=>me&&p.lat!=null?hv(me.lat,me.lng,p.lat,p.lng):null;
+const fmt=d=>d==null?'':d<1?Math.round(d*1000)+' m':d.toFixed(1)+' km';
+const myF=new Set();let fsMap={};const rank=p=>p.fuegos+(fsMap[p.id]?30:0)+(Date.now()-new Date(p.created_at||0)<36e5?50:0);
+
+/* --- almacenamiento local (solo chats, hasta la siguiente entrega) --- */
+const idb=new Promise(r=>{try{const q=indexedDB.open('parchate_local',1);q.onupgradeneeded=()=>q.result.createObjectStore('kv');q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)}catch(e){r(null)}});
+const kget=async k=>{const d=await idb;return d?new Promise(r=>{const q=d.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>r(q.result);q.onerror=()=>r()}):undefined};
+const kset=async(k,x)=>{const d=await idb;if(d)d.transaction('kv','readwrite').objectStore('kv').put(x,k)};
+
+/* --- fotos: se comprimen SIEMPRE antes de subir (máx 1080 px, JPEG ≤ 300 KB) --- */
+async function compress(file,max){if(!file.type||!file.type.startsWith('image/'))throw new Error('solo imágenes');if(file.size>15e6)throw new Error('muy grande');
+ const bm=await createImageBitmap(file),s=Math.min(1,max/Math.max(bm.width,bm.height)),c=document.createElement('canvas');c.width=Math.round(bm.width*s);c.height=Math.round(bm.height*s);
+ const x=c.getContext('2d'),enc=(t,q)=>new Promise(r=>c.toBlob(r,t,q));
+ if(/png|webp|gif/.test(file.type)){x.drawImage(bm,0,0,c.width,c.height);let q=.8,b;do{b=await enc('image/webp',q);q-=.1}while(b&&b.type==='image/webp'&&b.size>2e5&&q>.3);if(b&&b.type==='image/webp')return b}
+ x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(bm,0,0,c.width,c.height);
+ let q=.72,b;do{b=await enc('image/jpeg',q);q-=.1}while(b.size>2e5&&q>.3);return b}
+async function upload(file,max,cache){if(!sb||!uid)throw 0;const b=await compress(file,max||1080),path=`${uid}/${Date.now()}.${b.type==='image/webp'?'webp':'jpg'}`;
+ const {error}=await sb.storage.from('fotos').upload(path,b,{contentType:b.type,cacheControl:cache||'31536000'});if(error)throw error;return sb.storage.from('fotos').getPublicUrl(path).data.publicUrl}
+
+/* --- feed TOP FUEGO (todos los eventos) --- */
+const B='py-2 rounded-xl text-[11px] font-bold';
+const card=p=>`<div class="bg-[#1f1635] border border-[#3b2d63] rounded-2xl p-4 shadow-xl">
+<div class="flex justify-between items-center mb-1.5"><span class="bg-purple-500/20 text-purple-300 border border-purple-500/40 px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase">${esc(p.tag||'PARCHE')}</span><div class="bg-[#2d234a] border border-purple-900/60 px-2.5 py-1 rounded-xl text-xs font-bold text-orange-400">🔥 ${p.fuegos} <span class="text-[10px] font-medium text-orange-200/80">van</span></div></div>
+${fsMap[p.id]?`<div class="text-[10px] font-bold text-emerald-300 mb-1">🔄 Lo compartió ${esc(fsMap[p.id].slice(0,2).join(', '))}</div>`:''}<h3 class="font-bold text-base text-white leading-snug">${esc(p.title)}</h3>
+<p class="text-[11px] text-gray-400 mt-0.5 mb-2 flex justify-between"><span><i class="fa-solid fa-location-dot text-pink-500 mr-1.5"></i>${esc(p.zone||'Medellín')}</span><span class="text-pink-400 font-bold">${fmt(dist(p))}</span></p>${p.expires_at?`<div class="flex items-center justify-between mb-2"><span data-exp="${p.expires_at}" class="text-[10px] font-bold text-amber-300">${tfmt(p.expires_at)}</span>${p.author&&p.author===uid?`<button data-act="renew" data-id="${p.id}" class="text-[10px] font-bold text-emerald-300 underline">🔁 Renovar tiempo</button>`:''}</div>`:''}
+<div class="relative rounded-2xl overflow-hidden bg-black/40 h-44 mb-3 border border-purple-900/30">${p.img?`<img src="${esc(p.img)}" loading="lazy" class="w-full h-full object-cover">`:''}<button data-act="ubicar" data-id="${p.id}" class="absolute top-2.5 right-2.5 bg-emerald-600/90 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-xl shadow-lg"><i class="fa-solid fa-map-location-dot"></i> Ubicar</button><button data-act="repp" data-id="${p.id}" title="Reportar" class="absolute top-2.5 left-2.5 bg-black/50 text-white text-[10px] px-2 py-1.5 rounded-xl">🚩</button></div>
+<div class="grid grid-cols-3 gap-2"><button data-act="fuego" data-id="${p.id}" class="${myF.has(p.id)?'bg-emerald-600':'bg-gradient-to-r from-orange-500 to-amber-600'} text-white ${B}">${myF.has(p.id)?'✅ Ya voy':'🔥 A fuego'}</button><button data-act="opino" data-id="${p.id}" class="bg-[#2d234a] border border-purple-500/30 text-white ${B}">💬 Opino</button><button data-act="share" data-id="${p.id}" class="bg-[#2d234a] border border-purple-500/30 text-white ${B}">🔄 x2</button></div></div>`;
+const mini=p=>`<div class="bg-[#1f1635] border border-purple-500/30 rounded-xl p-2.5 mb-1.5"><div class="flex justify-between gap-2"><div class="min-w-0"><b class="text-white text-xs block">${esc(p.title)}</b><span class="text-[10px] text-gray-400">📍 ${esc(p.zone||'')} ${fmt(dist(p))}</span></div><span class="text-orange-400 font-bold text-xs">🔥 ${p.fuegos}</span></div>
+<div class="flex gap-2 mt-1.5"><button data-act="fuego" data-id="${p.id}" class="flex-1 bg-orange-600/80 text-white py-1 rounded-lg text-[10px] font-bold">🔥 A fuego</button><button data-act="ubicar" data-id="${p.id}" class="flex-1 bg-emerald-600/80 text-white py-1 rounded-lg text-[10px] font-bold">📍 Ubicar</button></div></div>`;
+function renderFeed(){const c=document.getElementById('dynamicParchesContainer');if(!c)return;
+ const l=parches.filter(p=>filter==='todo'||(filter==='cerca'?(dist(p)??9)<=1:(p.cat||[]).includes(filter))).sort((a,b)=>rank(b)-rank(a));
+ c.innerHTML=l.length?l.map(card).join(''):'<p class="text-center text-xs text-gray-500 py-8">No hay parches en este filtro todavía ✨</p>'}
+window.filterFeed=function(t){filter=t;['todo','cerca','locales','cafes','rumba'].forEach(k=>{const b=document.getElementById('filter-'+k);if(b)b.className=(k===t?'bg-pink-600 text-white font-bold shadow':'bg-[#1f1635] text-purple-300 border border-purple-900/50 font-medium')+' px-3 py-1.5 rounded-xl whitespace-nowrap'});renderFeed()};
+const seed=()=>[...document.querySelectorAll('#dynamicParchesContainer > [id^="card-"]')].map(c=>({id:'p'+c.id.slice(5),tag:c.querySelector('span').textContent.trim(),title:c.querySelector('h3').textContent.trim(),zone:(c.querySelector('p span')?.textContent||'').trim(),cat:(c.dataset.category||'').split(' '),img:c.querySelector('img')?.src||'',fuegos:parseInt(c.querySelector('[id^="count-"]')?.textContent)||0}));
+async function load(){if(!sb)return;const cols='id,title,zone,tag,cat,lat,lng,img,author,fuegos,created_at,expires_at',T=()=>sb.from('parches').select(cols);
+ const qs=[T().order('fuegos',{ascending:false}).limit(40),T().order('created_at',{ascending:false}).limit(20)];
+ if(me){const d=.0095,dl=d/Math.max(.2,Math.cos(me.lat*Math.PI/180));qs.push(T().gte('lat',me.lat-d).lte('lat',me.lat+d).gte('lng',me.lng-dl).lte('lng',me.lng+dl).limit(100))}
+ const rs=await Promise.all(qs);if(rs.some(r=>r.error))return toast('No pude cargar los parches','fa-triangle-exclamation');
+ const m=new Map();rs.forEach(r=>(r.data||[]).forEach(p=>m.set(p.id,p)));parches=[...m.values()].filter(keep);renderFeed();drawRadar();if(lmap)drawMap()}
+
+/* --- acciones --- */
+const bump=(id,n)=>{const p=parches.find(x=>x.id===id);if(p){p.fuegos+=n;renderFeed()}};
+async function fuego(id){if(myF.has(id)){const {error}=await sb.from('fuegos').delete().eq('parche_id',id).eq('user_id',uid);if(error)return toast(error.message,'fa-triangle-exclamation');myF.delete(id);bump(id,-1);return toast('Listo, ya no vas a este parche','fa-fire')}
+ const {error}=await sb.from('fuegos').insert({parche_id:id,user_id:uid});if(error)return toast(error.code==='23505'?'Ya ibas a este parche':error.message,'fa-fire');myF.add(id);bump(id,1);toast('🔥 ¡Cuentas como asistente!','fa-fire')}
+async function loadMyF(){const r=await sb.from('fuegos').select('parche_id').eq('user_id',uid);(r.data||[]).forEach(x=>myF.add(x.parche_id));renderFeed()}
+async function share(id){const {error}=await sb.from('shares').insert({parche_id:id,user_id:uid});if(error)return toast(error.code==='23505'?'Ya lo compartiste':error.message,'fa-retweet');
+ const f=await sb.from('fuegos').insert({parche_id:id,user_id:uid});if(!f.error){myF.add(id);bump(id,1)}toast('¡Parche republicado! 🔄 +🔥','fa-retweet')}
+async function opino(id){curP=id;document.getElementById('opinoTitle').innerText=parches.find(p=>p.id===id).title;document.getElementById('opinoModal').classList.remove('hidden');drawOpinos()}
+async function drawOpinos(){const {data}=await sb.from('opinos').select('id,text,user_id').eq('parche_id',curP).order('created_at'),nm={};
+ if(data?.length){const r=await sb.from('profiles').select('id,name').in('id',[...new Set(data.map(o=>o.user_id))]);(r.data||[]).forEach(x=>nm[x.id]=x.name)}
+ document.getElementById('opinoMessages').innerHTML=(data||[]).map(o=>`<div class="bg-[#2d234a] p-2.5 rounded-xl border border-purple-500/30"><span class="font-bold text-pink-400 block mb-0.5 text-[10px]">${esc(nm[o.user_id]||'Parchero')}</span>${esc(o.text)}</div>`).join('')||'<p class="text-gray-500 text-center">Sé el primero en opinar 💬</p>'}
+window.sendOpino=async function(){const i=document.getElementById('opinoInput'),t=i&&i.value.trim();if(!t||!curP||!uid||!sb)return;
+ const {error}=await sb.from('opinos').insert({parche_id:curP,user_id:uid,text:t});if(error)return toast(error.message,'fa-triangle-exclamation');i.value='';drawOpinos()};
+window.submitNewParche=async function(){if(!sb)return toast(NOSB,'fa-triangle-exclamation');if(!uid){closeCreateModal();return openAuthModal()}
+ const title=v('newParcheName'),zone=v('newParcheZone');if(!title)return;const loc=pickLoc||me;if(!loc)return toast('Activa tu ubicación o elige el lugar en el mapa','fa-location-crosshairs');
+ const n=norm(title+' '+zone),cat=['locales'];if(/cafe|tardeo/.test(n))cat.push('cafes');if(/rumba|bar|disco|trago|coctel|fiesta/.test(n))cat.push('rumba');
+ let img=null;const f=document.getElementById('newParcheImg')?.files[0];
+ try{if(f){toast('Comprimiendo y subiendo foto…','fa-image');img=await upload(f,900,'86400')}}catch(e){return toast('No pude subir la foto','fa-triangle-exclamation')}
+ const {error}=await sb.from('parches').insert({title,zone:zone||'Medellín',cat,lat:loc.lat,lng:loc.lng,img,author:uid,tag:'NUEVO ✨',expires_at:new Date(Date.now()+(+($('newParcheDur')?.value)||24)*36e5).toISOString()});
+ if(error)return toast(error.message,'fa-triangle-exclamation');
+ closeCreateModal();['newParcheName','newParcheZone','newParcheImg'].forEach(i=>{const e=document.getElementById(i);if(e)e.value=''});filterFeed('todo');load();toast('¡Parche creado!','fa-check')};
+const tpu=window.triggerPhotoUpload;window.triggerPhotoUpload=function(t){return t==='feed'?openCreateModal():tpu&&tpu(t)};
+
+/* --- sesión real --- */
+window.registerBriefUser=async function(){if(!sb)return toast(NOSB,'fa-triangle-exclamation');
+ const name=v('regNameInput'),email=v('regEmailInput'),pass=document.getElementById('regPassInput')?.value||'';
+ if(!email||pass.length<6)return toast('Escribe tu correo y una contraseña de 6+ caracteres','fa-triangle-exclamation');
+ let r=await sb.auth.signInWithPassword({email,password:pass});
+ if(r.error){if(!name)return toast('Para crear tu cuenta escribe también tu nombre','fa-user');if(!$('regAge18')?.checked)return toast('Para registrarte confirma que tienes 18 años o más','fa-user-shield');
+  r=await sb.auth.signUp({email,password:pass,options:{data:{name,age18:true}}});
+  if(r.error)return toast(r.error.message,'fa-triangle-exclamation');
+  if(!r.data.session)return toast('Revisa tu correo para confirmar la cuenta','fa-envelope')}};
+window.loginWithGoogle=async function(){if(!sb)return toast(NOSB,'fa-triangle-exclamation');if(!$('regAge18')?.checked)return toast('Marca primero la casilla de 18 años o más','fa-user-shield');try{localStorage.setItem('pch_age18','1')}catch(e){}if(NATIVE){const r=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:'com.veltrix.parchate://login-callback',skipBrowserRedirect:true}});if(r.error||!r.data||!r.data.url)return toast('No pude abrir Google','fa-triangle-exclamation');return CP('Browser').open({url:r.data.url})}
+ const {error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.href.split('#')[0]}});if(error)toast('Google aún no está activado en Supabase','fa-triangle-exclamation')};
+async function onSession(s){uid=s?.user?.id||null;myF.clear();fr.clear();fsMap={};if(ch){sb.removeChannel(ch);ch=null}unwatchGroup();
+ if(!uid){currentUser={isGuest:true,name:'Invitado',role:'Invitado',email:'',avatar:AV};updateUserUI();return drawRadar()}
+ const {data}=await sb.from('profiles').select('name,avatar,role,visible').eq('id',uid).single();
+ currentUser={isGuest:false,id:uid,name:data?.name||'Parchero',role:data?.role||'Miembro',email:s.user.email,avatar:data?.avatar||AV};
+ radarOn=data?.visible!==false;try{if(!s.user.user_metadata?.age18&&localStorage.getItem('pch_age18'))sb.auth.updateUser({data:{age18:true}})}catch(e){}updateUserUI();closeAuthModal();pushLoc();drawRadar();loadGroups();loadChats();subscribe();loadMyF();loadFr();saveTok();setTimeout(askNotifOnce,4000);const oc=new URLSearchParams(location.search).get('chat');if(oc&&/^[0-9a-f-]{36}$/i.test(oc)){history.replaceState(null,'','/');openChatDetail(oc)}}
+const elo=window.executeLogout;window.executeLogout=function(){elo&&elo();if(sb)pushOff().finally(()=>sb.auth.signOut())};
+const spi=window.saveProfileInfo;window.saveProfileInfo=function(){spi&&spi();if(sb&&uid)sb.from('profiles').update({name:currentUser.name,role:currentUser.role}).eq('id',uid)};
+window.updateProfilePhoto=async function(e){const f=e.target.files[0];if(!f||!uid)return;
+ try{const url=await upload(f,256);await sb.from('profiles').update({avatar:url}).eq('id',uid);currentUser.avatar=url;updateUserUI();toast('Foto actualizada','fa-camera')}catch(x){toast('No pude subir la foto','fa-triangle-exclamation')}};
+
+/* --- ubicación y radar (máx. 1 km) --- */
+let lastPush=0,lastPos=null;
+async function pushLoc(){if(!(sb&&uid&&me&&radarOn))return;if(lastPos&&hv(lastPos.lat,lastPos.lng,me.lat,me.lng)<.05&&Date.now()-lastPush<3e5)return;lastPush=Date.now();lastPos={...me};
+ await sb.from('profiles').update({lat:me.lat,lng:me.lng,updated_at:new Date().toISOString()}).eq('id',uid)}
+function locate(){if(!navigator.geolocation)return;navigator.geolocation.getCurrentPosition(p=>{me={lat:p.coords.latitude,lng:p.coords.longitude};renderFeed();pushLoc().then(drawRadar);if(lmap)drawMap()},
+ ()=>toast('Activa la ubicación para ver parches y personas cerca','fa-location-crosshairs'),{enableHighAccuracy:true,timeout:15000,maximumAge:30000})}
+async function drawRadar(){const c=document.getElementById('radarCarousel');if(!c||c.offsetParent===null)return;
+ const km=Math.min(1,parseFloat(document.getElementById('radarKmSlider')?.value||1)),txt=km<1?Math.round(km*1000)+' m':'1 km',lab=document.getElementById('rangeKmValueDisplay');if(lab)lab.innerText=txt;
+ let people=[];
+ if(!me)c.innerHTML='<div class="text-[11px] text-gray-400 py-2">Activa tu ubicación para ver el radar.</div>';
+ else if(!uid||!sb)c.innerHTML='<div class="text-[11px] text-gray-400 py-2">Regístrate para ver personas cerca.</div>';
+ else{const {data}=await sb.rpc('nearby_people',{my_lat:me.lat,my_lng:me.lng,radius_km:km});people=data||[];
+  c.innerHTML=people.length?people.map(p=>`<div data-act="chat" data-id="${p.id}" data-name="${esc(p.name)}" class="flex flex-col items-center bg-[#1f1635] border border-purple-900/50 p-2.5 rounded-2xl min-w-[85px] cursor-pointer"><img src="${esc(p.avatar||AV)}" class="w-12 h-12 rounded-full object-cover border-2 border-pink-500 mb-1"><span class="font-bold text-[11px] text-white truncate w-20 text-center">${esc(p.name)}</span><span class="text-[9px] text-pink-400 font-bold">${fmt(Number(p.distance_km))}</span>${frBtn(p.id)}</div>`).join(''):`<div class="text-[11px] text-gray-400 py-2">No hay personas a menos de ${txt}.</div>`}
+ radarPeople=people;const n=document.getElementById('radarCountNum');if(n)n.innerText=people.length;
+ const ev=document.getElementById('radarEventsList');if(ev){const l=me?parches.filter(p=>(dist(p)??9)<=km).sort((a,b)=>dist(a)-dist(b)):[];ev.innerHTML=l.length?l.map(mini).join(''):`<div class="text-[11px] text-gray-400 py-2">No hay parches a menos de ${txt}.</div>`}}
+window.updateRadarRange=drawRadar;
+window.toggleRadarActivos=async function(){radarOn=!radarOn;if(sb&&uid){await sb.from('profiles').update({visible:radarOn}).eq('id',uid);if(radarOn)pushLoc()}toast(radarOn?'Apareces en el radar':'Saliste del radar: nadie te ve','fa-satellite-dish')};
+
+/* --- mapa (OpenStreetMap) --- */
+function drawMap(){const el=document.getElementById('map');if(!window.L||!el)return;
+ if(!lmap){lmap=L.map(el).setView([6.2442,-75.5812],13);L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(lmap);lg=L.layerGroup().addTo(lmap);lmap.on('moveend',loadBounds);lmap.on('click',e=>{pickTmp=e.latlng;L.popup().setLatLng(e.latlng).setContent('<button data-act="crearaqui" style="background:#ec4899;color:#fff;border:0;border-radius:10px;padding:6px 10px;font-weight:700">➕ Crear parche aquí</button>').openOn(lmap)})}
+ lmap.invalidateSize();lg.clearLayers();
+ parches.filter(p=>p.lat!=null&&(!p.expires_at||new Date(p.expires_at)>Date.now())).forEach(p=>L.circleMarker([p.lat,p.lng],{radius:9,color:'#ec4899',fillColor:'#ec4899',fillOpacity:.8}).addTo(lg).bindPopup(`<b>${esc(p.title)}</b><br>${esc(p.zone||'')}<br>🔥 ${p.fuegos} van<br><button data-act="fuego" data-id="${p.id}" style="margin-top:4px;background:#f97316;color:#fff;border:0;border-radius:8px;padding:4px 8px;font-weight:700">🔥 A fuego</button> <button data-act="ubicar" data-id="${p.id}" style="margin-top:4px;background:#059669;color:#fff;border:0;border-radius:8px;padding:4px 8px;font-weight:700">📍 Cómo llegar</button>`));
+ if(me){L.circleMarker([me.lat,me.lng],{radius:7,color:'#38bdf8',fillColor:'#38bdf8',fillOpacity:1}).addTo(lg).bindPopup('Tú estás aquí');if(!lmap._c){lmap.setView([me.lat,me.lng],15);lmap._c=1}}}
+const osv=window.switchFeedView;window.switchFeedView=function(x){osv(x);if(x==='mapa')setTimeout(drawMap,60)};
+
+/* --- buscador: muestra parches (y Gemini opcional) --- */
+const SYN=[['rumba','fiesta','bar','trago','tragos','coctel','cocteles','discoteca','baile','noche','rumbear'],['cafe','cafes','cafeteria','desayuno'],['tardeo','tarde','atardecer','vista','vistas','cena']];
+const STOP=new Set('que hay top hoy en el la los las de del un una para donde quiero algo con y o por me mas bueno buen cual cuales dame dime'.split(' '));
+function search(q){const toks=norm(q).split(/[^a-z0-9ñ]+/).filter(t=>t&&!STOP.has(t));if(!toks.length)return [];
+ return parches.map(p=>{const h=norm([p.title,p.zone,p.tag,...(p.cat||[])].join(' '));let s=0;
+  toks.forEach(t=>{const g=SYN.find(a=>a.includes(t))||[t];if(g.some(w=>h.includes(w)))s+=2;if(t==='cerca'&&(dist(p)??9)<=1)s+=2});return {p,s}}).filter(x=>x.s>0).sort((a,b)=>b.s-a.s||rank(b.p)-rank(a.p)).map(x=>x.p)}
+
+/* --- chats reales (Supabase) --- */
+let chat=null,names={},viewed=new Set(),radarPeople=[],ch=null;
+const DEF={'parche-infinito':'00000000-0000-4000-8000-0000000000a1','unete-al-parche':'00000000-0000-4000-8000-0000000000a2'};
+const $=id=>document.getElementById(id);
+const hhmm=t=>new Date(t).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+const att=(id,t)=>{const e=$(id);if(e&&!e._pb){e._pb=1;attachRichInputListeners(id,t)}};
+async function nameFor(ids){const need=[...new Set(ids)].filter(i=>i&&!names[i]);if(!need.length||!uid)return;const {data}=await sb.from('profiles').select('id,name').in('id',need);(data||[]).forEach(x=>names[x.id]=x.name)}
+const box=()=>$(chat.t==='g'?'groupChatMessages':'chatDetailMessages');
+function mhtml(m){const me=m.sender===uid;let c;
+ if(m.kind==='photo')c=m.view_once?(viewed.has(m.id)?'<div class="text-[11px] text-gray-500 font-bold">🔒 Foto expirada</div>':`<button data-act="once" data-id="${m.id}" data-src="${esc(m.img)}" class="bg-gradient-to-r from-pink-900/80 to-purple-900/80 border border-pink-500/50 text-pink-200 px-3 py-1.5 rounded-xl text-[11px] font-bold">👁 Foto efímera (ver 1 vez)</button>`):`<img src="${esc(m.img)}" loading="lazy" class="w-48 h-36 object-cover rounded-xl mt-1">`;
+ else c=`<p class="text-gray-200">${esc(m.text)}</p>`;
+ return `<div id="msg_${m.id}" data-msg="${m.id}" data-sender="${m.sender}" data-kind="${esc(m.kind)}" data-ctx="${chat.t==='g'?'group':'private'}" class="p-2.5 rounded-2xl text-xs max-w-[85%] ${me?'bg-purple-900/60 rounded-tr-none ml-auto':'bg-[#2d234a] rounded-tl-none'}"><span class="font-bold text-pink-400 block text-[10px]">${me?'Tú':esc(names[m.sender]||'Parchero')}</span>${c}<span class="text-[9px] text-gray-400 mt-1 block">${hhmm(m.created_at)}</span></div>`}
+function addMsg(m){if($('msg_'+m.id))return;const b=box();b.insertAdjacentHTML('beforeend',mhtml(m));b.scrollTop=b.scrollHeight}
+async function loadMsgs(){const q=sb.from('messages').select('*').order('created_at',{ascending:false}).limit(100);
+ const {data}=chat.t==='g'?await q.eq('group_id',chat.id):await q.is('group_id',null).or(`and(sender.eq.${uid},to_user.eq.${chat.id}),and(sender.eq.${chat.id},to_user.eq.${uid})`);
+ const rows=(data||[]).reverse();await nameFor(rows.map(r=>r.sender));const b=box();b.innerHTML=rows.map(mhtml).join('');b.scrollTop=b.scrollHeight}
+async function send(text,img,once){if(!chat||!uid)return;const row={sender:uid,text:text?text.slice(0,1000):null,img:img||null,kind:img?'photo':'text',view_once:!!once};
+ if(chat.t==='g')row.group_id=chat.id;else row.to_user=chat.id;
+ const {data,error}=await sb.from('messages').insert(row).select('*').single();if(error)return toast(error.message,'fa-triangle-exclamation');addMsg(data)}
+window.openGroupChat=async function(gid,title){chat={t:'g',id:DEF[gid]||gid};$('groupChatHeaderTitle').innerText=title;$('groupChatMessages').innerHTML='';$('groupChatModal').classList.remove('hidden');att('groupMessageInput','group');await loadMsgs();watchGroup(chat.id)};
+window.openChatDetail=async function(id,name){await nameFor([id]);chat={t:'p',id};$('chatDetailTitle').innerText='Chat privado con '+(name||names[id]||'Parchero');$('chatDetailMessages').innerHTML='';$('chatDetailModal').classList.remove('hidden');att('chatDetailInput','private');await loadMsgs()};
+window.sendGroupTextMessage=async function(){const i=$('groupMessageInput'),t=i&&i.innerText.trim();if(!t||!chat||chat.t!=='g')return;i.innerHTML='';await send(t)};
+window.sendPrivateMessage=async function(){const i=$('chatDetailInput'),t=i&&i.innerText.trim();if(!t||!chat||chat.t!=='p')return;i.innerHTML='';await send(t)};
+window.processAndUploadSelectedImage=async function(ev){const f=ev.target.files[0];ev.target.value='';if(!f)return;
+ if(f.type.startsWith('video/'))return toast('🚫 Solo se permiten fotos','fa-triangle-exclamation');
+ try{toast('Comprimiendo y enviando…','fa-image');await send(null,await upload(f,1080),isViewOnceActive);if(isViewOnceActive)toggleViewOnceMode()}catch(e){toast('No pude enviar la foto','fa-triangle-exclamation')}};
+window.processPastedImageFile=async function(f){if(f instanceof Blob){try{await send(null,await upload(f,1080),false)}catch(e){toast('No pude enviar la imagen','fa-triangle-exclamation')}}};
+window.deleteSelectedMessage=async function(){const id=selectedMessageRef&&selectedMessageRef.id;closeMessageOptions();if(!id)return;
+ const {data}=await sb.from('messages').delete().eq('id',id).select('id');if(!data?.length)return toast('Solo puedes borrar tus propios mensajes','fa-ban');$('msg_'+id)?.remove();toast('Mensaje eliminado','fa-trash-can')};
+async function onMsg(p){if(!uid)return;if(p.eventType==='DELETE'){$('msg_'+p.old.id)?.remove();return}if(p.eventType!=='INSERT')return;const m=p.new;
+ const inChat=chat&&((chat.t==='g'&&m.group_id===chat.id)||(chat.t==='p'&&((m.sender===chat.id&&m.to_user===uid)||(m.sender===uid&&m.to_user===chat.id))));
+ await nameFor([m.sender]);if(inChat)addMsg(m);else if(m.to_user===uid){toast('💬 '+(names[m.sender]||'Parchero')+': '+(m.kind==='photo'?'📷 Foto':String(m.text).slice(0,40).replace(/[<>]/g,'')),'fa-comment');loadChats()}}
+function subscribe(){if(ch||!sb)return;ch=sb.channel('priv').on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:`to_user=eq.${uid}`},onMsg).on('postgres_changes',{event:'INSERT',schema:'public',table:'groups'},loadGroups).subscribe()}
+let gch=null;
+function watchGroup(id){unwatchGroup();gch=sb.channel('g'+id).on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:`group_id=eq.${id}`},onMsg).subscribe()}
+function unwatchGroup(){if(gch&&sb){sb.removeChannel(gch)}gch=null}
+async function loadGroups(){if(!sb||!uid)return;const {data}=await sb.from('groups').select('id,name,emoji,descr').order('created_at'),c=$('groupsRadarContainer');if(!c)return;c.querySelectorAll('[data-dyn]').forEach(x=>x.remove());
+ (data||[]).filter(g=>!Object.values(DEF).includes(g.id)).forEach(g=>c.insertAdjacentHTML('beforeend',`<div data-dyn class="bg-[#1f1635] border border-purple-500/40 rounded-2xl p-3.5 shadow-xl"><div class="flex items-center gap-2.5 mb-2"><div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-pink-600 to-purple-600 flex items-center justify-center text-xl">${esc(g.emoji)}</div><div><h3 class="font-black text-sm text-white">${esc(g.name)}</h3><p class="text-[10px] text-purple-200">${esc(g.descr)}</p></div></div><button data-act="grupo" data-id="${g.id}" data-name="${esc(g.name+' '+g.emoji)}" class="w-full bg-purple-600 text-white py-2 rounded-xl text-xs font-bold"><i class="fa-solid fa-comments"></i> Entrar al Chat</button></div>`))}
+window.submitNewGroup=async function(){if(!sb||!uid)return;const name=v('newGroupName');if(!name)return;
+ const {error}=await sb.from('groups').insert({name,emoji:v('newGroupEmoji')||'🎉',descr:v('newGroupDesc')||'Parche en Radar',owner:uid});
+ if(error)return toast(error.message,'fa-triangle-exclamation');closeCreateGroupModal();toast('¡Grupo creado!','fa-check');loadGroups()};
+async function loadChats(){const c=$('chatsListContainer');if(!c)return;
+ if(!uid){c.innerHTML='<p class="text-xs text-gray-400 p-3">Regístrate para chatear con otras personas.</p>';return}
+ const {data}=await sb.from('messages').select('sender,to_user,text,kind,created_at').not('to_user','is',null).order('created_at',{ascending:false}).limit(200),last=new Map();
+ (data||[]).forEach(m=>{const o=m.sender===uid?m.to_user:m.sender;if(!last.has(o))last.set(o,m)});await nameFor([...last.keys()]);
+ c.innerHTML=[...last].map(([id,m])=>`<div class="bg-[#1f1635] border border-purple-900/50 rounded-2xl p-3 flex items-center justify-between gap-2"><div class="min-w-0"><b class="text-sm text-white">${esc(names[id]||'Parchero')}</b><p class="text-[11px] text-gray-400 truncate">${m.kind==='photo'?'📷 Foto':esc(m.text)}</p></div><button data-act="chat" data-id="${id}" data-name="${esc(names[id]||'Parchero')}" class="bg-purple-600 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold">Abrir</button></div>`).join('')||'<p class="text-xs text-gray-400 p-3">Aún no tienes chats. Escríbele a alguien desde el radar 👋</p>'}
+const ost=window.switchTab;window.switchTab=function(t){ost(t);if(t==='tab-chats')loadChats();if(t==='tab-mapa')setTimeout(drawRadar,80);if(t==='tab-miparche')setTimeout(loadGallery,80)}
+const ocg=window.closeGroupChat;window.closeGroupChat=function(){ocg&&ocg();unwatchGroup()};;
+window.openFullRadarModal=function(){let o=$('fullRadar');if(!o){o=document.createElement('div');o.id='fullRadar';o.className='fixed inset-0 z-[90] bg-black/80 flex items-end justify-center';document.body.appendChild(o)}
+ o.innerHTML=`<div class="bg-[#1f1635] w-full max-w-md rounded-t-3xl p-4 max-h-[75vh] overflow-y-auto"><div class="flex justify-between mb-3"><b class="text-white text-sm">Personas cerca (${radarPeople.length})</b><button onclick="document.getElementById('fullRadar').remove()" class="text-gray-400">✕</button></div>${radarPeople.map(p=>`<div class="flex items-center gap-3 mb-2.5"><img src="${esc(p.avatar||AV)}" class="w-10 h-10 rounded-full object-cover border-2 border-pink-500"><div class="flex-1 min-w-0"><b class="text-xs text-white block truncate">${esc(p.name)}</b><span class="text-[10px] text-pink-400">${fmt(Number(p.distance_km))}</span> ${frBtn(p.id)}</div><button data-act="chat" data-id="${p.id}" data-name="${esc(p.name)}" class="bg-purple-600 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold">Chatear</button></div>`).join('')||'<p class="text-xs text-gray-400">No hay personas a menos de 1 km ahora mismo.</p>'}</div>`};
+async function showBlocked(){const {data}=await sb.from('blocks').select('blocked').eq('blocker',uid),ids=(data||[]).map(x=>x.blocked);await nameFor(ids);
+ let o=$('blockedOv');if(!o){o=document.createElement('div');o.id='blockedOv';o.className='fixed inset-0 z-[90] bg-black/80 flex items-end justify-center';document.body.appendChild(o)}
+ o.innerHTML=`<div class="bg-[#1f1635] w-full max-w-md rounded-t-3xl p-4 max-h-[75vh] overflow-y-auto"><div class="flex justify-between mb-3"><b class="text-white text-sm">Usuarios bloqueados (${ids.length})</b><button onclick="document.getElementById('blockedOv').remove()" class="text-gray-400">✕</button></div>${ids.map(i=>`<div class="flex items-center justify-between mb-2.5"><b class="text-xs text-white">${esc(names[i]||'Parchero')}</b><button data-act="unblk" data-id="${i}" class="bg-purple-600 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold">Desbloquear</button></div>`).join('')||'<p class="text-xs text-gray-400">No has bloqueado a nadie.</p>'}</div>`}
+async function unblock(id){const {error}=await sb.from('blocks').delete().eq('blocker',uid).eq('blocked',id);if(error)return toast('No pude desbloquear','fa-triangle-exclamation');toast('Persona desbloqueada','fa-check');showBlocked();loadChats();drawRadar()}
+async function report(x){const reason=(prompt('¿Qué pasó? (acoso, contenido sexual, menor de edad, violencia, spam, otro)')||'').trim().slice(0,500);if(!reason)return;
+ const {error}=await sb.from('reports').insert({reporter:uid,reason,...x});toast(error?'No pude enviar el reporte':'Gracias, revisaremos tu reporte 🚩',error?'fa-triangle-exclamation':'fa-flag')}
+async function block(u){if(!confirm('¿Bloquear a esta persona? No podrán escribirse ni verse en el radar.'))return;const {error}=await sb.from('blocks').insert({blocker:uid,blocked:u});
+ if(error&&error.code!=='23505')return toast('No pude bloquear','fa-triangle-exclamation');toast('Persona bloqueada 🚫','fa-ban');if(chat)loadMsgs();loadChats();drawRadar()}
+/* --- encabezado nuevo, íconos de respaldo y notificaciones push --- */
+const IC={xmark:'✕',comments:'💬',comment:'💬',camera:'📷',image:'🖼️','user-plus':'➕','trash-can':'🗑️',fire:'🔥',clock:'🕒','user-circle':'👤',user:'👤','user-shield':'🛡️','location-dot':'📍','map-location-dot':'📍','location-crosshairs':'🎯',plus:'➕','people-group':'👥',users:'👥','users-viewfinder':'👥',radar:'📡','satellite-dish':'📡',eye:'👁️','ellipsis-vertical':'⋮',broom:'🧹','right-from-bracket':'↪',retweet:'🔄','paper-plane':'➤','circle-info':'ℹ️',bell:'🔔','bell-slash':'🔕','wand-magic-sparkles':'✨','layer-group':'▦','shield-halved':'🛡️','photo-film':'🖼️','triangle-exclamation':'⚠️',copy:'📋',google:'G',lock:'🔒',check:'✔',key:'🔑',wifi:'📶',ban:'🚫',flag:'🚩',envelope:'✉️',star:'⭐'};
+function iconFallback(){const on=()=>{const s=document.createElement('style');s.textContent='.fa-solid::before,.fa-regular::before,.fa-brands::before{font-family:system-ui,"Segoe UI Emoji","Apple Color Emoji",sans-serif!important;font-weight:400!important}'+Object.entries(IC).map(([k,x])=>`.fa-${k}::before{content:"${x}"!important}`).join('');document.head.appendChild(s)};
+ addEventListener('load',()=>{Promise.race([document.fonts.load('900 16px "Font Awesome 6 Free"'),new Promise((_,r)=>setTimeout(r,5000))]).then(f=>{if(!f||!f.length)on()}).catch(on)})}
+function buildHeader(){const h=document.querySelector('header');if(!h)return;
+ if(!$('hdrCss')){const st=document.createElement('style');st.id='hdrCss';st.textContent='.hdr-aurora{position:absolute;inset:0;overflow:hidden;pointer-events:none;background:linear-gradient(120deg,#1a1033,#2a1458,#3b1a6e,#1a1033);background-size:300% 300%;animation:hdrShift 14s ease infinite}.hdr-aurora i{position:absolute;width:150px;height:150px;border-radius:50%;filter:blur(34px);opacity:.55;will-change:transform}.hdr-aurora i:nth-child(1){background:#ec4899;left:-30px;top:-60px;animation:blobA 11s ease-in-out infinite alternate}.hdr-aurora i:nth-child(2){background:#6366f1;right:-30px;top:-50px;animation:blobB 13s ease-in-out infinite alternate}.hdr-aurora i:nth-child(3){background:#a855f7;left:35%;bottom:-90px;animation:blobC 15s ease-in-out infinite alternate}@keyframes hdrShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}@keyframes blobA{to{transform:translate(130px,30px) scale(1.2)}}@keyframes blobB{to{transform:translate(-120px,40px) scale(1.15)}}@keyframes blobC{to{transform:translate(-100px,-20px) scale(1.3)}}@media (prefers-reduced-motion:reduce){.hdr-aurora,.hdr-aurora i{animation:none}}';document.head.appendChild(st)}
+ h.innerHTML=`<div class="hdr-aurora"><i></i><i></i><i></i></div>
+<div class="flex justify-between items-center w-full relative z-10 gap-2">
+<button onclick="requestNotificationPermission()" id="notificationBellBtn" aria-label="Notificaciones" class="relative w-10 h-10 shrink-0 rounded-2xl bg-purple-900/60 border border-purple-500/40 flex items-center justify-center shadow-lg active:scale-95 transition"><svg id="bellSvg" class="animate-pulse" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span id="bellDot" class="hidden absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#18122b]"></span></button>
+<div class="text-center min-w-0"><div class="flex items-center justify-center gap-2"><svg width="30" height="30" viewBox="0 0 24 24"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ec4899"/><stop offset="1" stop-color="#6366f1"/></linearGradient></defs><rect width="24" height="24" rx="7" fill="url(#lg)"/><path d="M12 4.5a5 5 0 0 0-5 5c0 3.6 5 9 5 9s5-5.4 5-9a5 5 0 0 0-5-5z" fill="#fff"/><circle cx="12" cy="9.5" r="1.9" fill="#7c3aed"/></svg><h1 class="text-[22px] leading-none font-black tracking-[0.18em] bg-gradient-to-r from-pink-500 via-purple-400 to-indigo-400 bg-clip-text text-transparent">PÁRCHATE</h1></div><p class="text-[10px] font-bold text-purple-300 tracking-wider mt-1">Medellín · <span class="text-pink-400">RADAR &amp; PARCHES</span></p></div>
+<button onclick="checkAuthAndOpenProfile()" id="headerUserBadge" class="shrink-0 flex items-center gap-1.5 h-10 pl-1.5 pr-3 rounded-2xl bg-purple-900/60 border border-purple-500/40 shadow-lg active:scale-95 transition"><img id="headerAvatar" alt="" class="hidden w-7 h-7 rounded-full object-cover bg-purple-800"><svg id="headerUserIcon" class="ml-1" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f9a8d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span id="headerStatusText" class="text-xs font-bold text-pink-200 max-w-[80px] truncate">Entrar</span></button></div>`;refreshHeader()}
+function refreshHeader(){const img=$('headerAvatar'),ic=$('headerUserIcon');if(!img||!ic)return;const has=currentUser&&!currentUser.isGuest&&currentUser.avatar&&!/flaticon/.test(currentUser.avatar);
+ img.classList.toggle('hidden',!has);ic.classList.toggle('hidden',!!has);if(has)img.src=currentUser.avatar;const t=$('headerStatusText');if(t&&currentUser&&currentUser.isGuest)t.textContent='Entrar'}
+const uuu=window.updateUserUI;window.updateUserUI=function(){uuu&&uuu();refreshHeader()};
+/* notificaciones push (segundo plano) */
+let swReg=null;
+const u8=s=>{const r=atob((s+'='.repeat((4-s.length%4)%4)).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from([...r].map(c=>c.charCodeAt(0)))};
+async function initSW(){if(NATIVE){nativeInit();return}if(!('serviceWorker' in navigator))return;try{swReg=await navigator.serviceWorker.register('/sw.js');navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.openChat)requireAuthAction(()=>openChatDetail(e.data.openChat));else if(e.data&&e.data.openParche){switchTab('tab-descubrir');load()}});bellUI()}catch(e){}}
+async function bellUI(){let on=false;try{on=NATIVE?!!(fcmTok&&(await CP('PushNotifications').checkPermissions()).receive==='granted'):!!(swReg&&await swReg.pushManager.getSubscription())}catch(e){}const d=$('bellDot'),s=$('bellSvg');if(d)d.classList.toggle('hidden',!on);if(s)s.classList.toggle('animate-pulse',!on)}
+async function pushOff(){if(NATIVE){try{if(fcmTok)await sb.from('push_subs').delete().eq('endpoint','fcm:'+fcmTok);const P=CP('PushNotifications');if(P&&P.unregister)await P.unregister();fcmTok=null;kset('fcmTok',null)}catch(e){}bellUI();return}try{const s=swReg&&await swReg.pushManager.getSubscription();if(s){await sb.from('push_subs').delete().eq('endpoint',s.endpoint);await s.unsubscribe()}}catch(e){}bellUI()}
+window.requestNotificationPermission=async function(){
+ if(!sb)return toast(NOSB,'fa-triangle-exclamation');if(!uid){toast('Entra a tu cuenta para activar las notificaciones','fa-bell');return openAuthModal()}
+ if(NATIVE){const P=CP('PushNotifications');if(!P)return toast('Falta el plugin de notificaciones en la app','fa-triangle-exclamation');
+  if(fcmTok&&(await P.checkPermissions()).receive==='granted')return notifMenu({endpoint:'fcm:'+fcmTok});
+  const r=await P.requestPermissions();if(r.receive!=='granted')return toast('Permiso denegado. Actívalo en Ajustes → Apps → Párchate → Notificaciones.','fa-ban');
+  await P.register();return toast('🔔 Listo: te avisamos de mensajes, amigos y parches nuevos cerca','fa-bell')}
+ if(!swReg||!('Notification' in window)||!('PushManager' in window))return toast('Este navegador no admite notificaciones. En iPhone, primero añade la app a la pantalla de inicio.','fa-bell-slash');
+ const cur=await swReg.pushManager.getSubscription();if(cur)return notifMenu(cur);
+ if(await Notification.requestPermission()!=='granted')return toast('Permiso denegado. Actívalo en los ajustes del navegador.','fa-ban');
+ const {data}=await sb.from('app_config').select('value').eq('key','vapid_public').maybeSingle();if(!data||!data.value)return toast('Faltan las claves de notificaciones en el servidor','fa-triangle-exclamation');
+ try{const sub=await swReg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(data.value)}),j=sub.toJSON();
+  const {error}=await sb.from('push_subs').upsert({user_id:uid,endpoint:j.endpoint,p256dh:j.keys.p256dh,auth:j.keys.auth},{onConflict:'endpoint'});if(error)throw error;bellUI();toast('🔔 Listo: te avisamos de mensajes y parches nuevos cerca','fa-bell')}catch(e){toast('No pude activar las notificaciones','fa-triangle-exclamation')}};
+/* --- buscador inteligente, mapa interactivo y avisos por tipo --- */
+const ZONES={laureles:[6.2447,-75.5915],provenza:[6.2092,-75.5675],poblado:[6.2090,-75.5700],envigado:[6.1759,-75.5917],sabaneta:[6.1515,-75.6165],belen:[6.2290,-75.6085],centro:[6.2518,-75.5636],palmas:[6.2070,-75.5440],estadio:[6.2565,-75.5900],itagui:[6.1846,-75.5991],bello:[6.3370,-75.5580],floresta:[6.2570,-75.6040]};
+const zoneOf=q=>{const n=norm(q),k=Object.keys(ZONES).find(z=>n.includes(z));return k?{name:k,lat:ZONES[k][0],lng:ZONES[k][1]}:null};
+let pickLoc=null,pickTmp=null,bt=null;
+async function remote(q,anchor){if(!sb)return;const cols='id,title,zone,tag,cat,lat,lng,img,author,fuegos,created_at,expires_at',T=()=>sb.from('parches').select(cols),qs=[],
+ toks=[...new Set([...q.toLowerCase().split(/[^a-záéíóúüñ0-9]+/),...norm(q).split(/[^a-z0-9ñ]+/)])].filter(t=>t.length>2&&!STOP.has(norm(t))).slice(0,6);
+ if(toks.length)qs.push(T().or(toks.map(t=>`title.ilike.*${t}*,zone.ilike.*${t}*,tag.ilike.*${t}*`).join(',')).limit(30));
+ if(anchor){const d=.03,dl=d/Math.max(.2,Math.cos(anchor.lat*Math.PI/180));qs.push(T().gte('lat',anchor.lat-d).lte('lat',anchor.lat+d).gte('lng',anchor.lng-dl).lte('lng',anchor.lng+dl).limit(60))}
+ const rs=await Promise.all(qs),m=new Map(parches.map(p=>[p.id,p]));rs.forEach(r=>(r.data||[]).forEach(p=>m.set(p.id,p)));parches=[...m.values()].filter(keep)}
+async function gemini(q,ctx){const k=await kget('gkey');if(!k)return null;if(!navigator.onLine)return '📴 Sin internet: solo te muestro los parches.';
+ try{const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':k},
+  body:JSON.stringify({contents:[{parts:[{text:`Eres Parchate AI, guía de planes en Medellín. Responde en español, máximo 3 frases, siempre positivo. NUNCA digas que algo no existe ni que no hay nada: si no hay coincidencia exacta, recomienda lo más cercano de la lista. Recomienda SOLO parches de esta lista.\n${ctx}\nPregunta: ${q}`}]}]})});
+  const j=await r.json();return j.candidates?.[0]?.content?.parts?.[0]?.text||null}catch(e){return null}}
+window.askGemini=async function(){const q=v('geminiInput'),box=$('geminiResponse');if(!q||!box)return;box.classList.remove('hidden');box.innerHTML='<div class="text-purple-300 text-xs">🔎 Buscando parches…</div>';
+ const z=zoneOf(q),anchor=z||me,zl=z?z.name.charAt(0).toUpperCase()+z.name.slice(1):null;await remote(q,anchor);
+ const res=search(q),ids=new Set(res.map(p=>p.id)),dA=p=>p.lat==null?99:hv(anchor.lat,anchor.lng,p.lat,p.lng);
+ let near=anchor?parches.filter(p=>!ids.has(p.id)&&p.lat!=null&&dA(p)<=5).sort((a,b)=>dA(a)-dA(b)).slice(0,3):[];
+ if(!near.length)near=parches.filter(p=>!ids.has(p.id)).sort((a,b)=>rank(b)-rank(a)).slice(0,3);
+ const where=zl?'cerca de '+zl:'cerca de ti',H='mb-1.5 text-purple-300 font-bold';
+ let h=res.length?`<div class="${H}">🔎 ${res.length} parche(s) para “${esc(q)}”</div>${res.slice(0,6).map(mini).join('')}`:`<div class="${H}">✨ Por ahí aún no hay planes cargados para “${esc(q)}”, pero mira lo que hay ${where}:</div>`;
+ if(near.length)h+=`<div class="mt-2 ${H}">📍 ${res.length?'También '+where:'Te van a gustar'}</div>${near.map(mini).join('')}`;
+ else if(!res.length)h+='<div class="text-gray-300">Aún no hay parches cargados por aquí. ¡Sé la primera persona en crear uno!</div>';
+ h+=`<button data-act="crear" class="mt-2 w-full bg-purple-700/70 text-white py-1.5 rounded-xl text-[11px] font-bold">➕ ¿Conoces un buen plan? Crea el parche</button><div id="aiText" class="mt-2 text-gray-200"></div><div class="mt-2 flex gap-4 text-[10px]"><a class="text-pink-400 underline" target="_blank" rel="noopener" href="https://www.google.com/search?q=${encodeURIComponent(q+' Medellín')}">🌐 Buscar en la web</a><button data-act="key" class="text-purple-300 underline">⚙️ Clave Gemini</button></div>`;
+ box.innerHTML=h;const L=a=>a.map(p=>`${p.title} (${p.zone||''}${dist(p)!=null?', '+fmt(dist(p)):''}, ${p.fuegos} van)`).join('; ');
+ const t=await gemini(q,`Coinciden: ${L(res.slice(0,6))||'ninguno'}. Cercanos: ${L(near)||'ninguno'}.`);if(t){const e=$('aiText');if(e)e.innerText='🤖 '+t}};
+function loadBounds(){clearTimeout(bt);bt=setTimeout(async()=>{if(!sb||!lmap||lmap.getZoom()<11)return;const b=lmap.getBounds();
+ const {data}=await sb.from('parches').select('id,title,zone,tag,cat,lat,lng,img,author,fuegos,created_at,expires_at').gte('lat',b.getSouth()).lte('lat',b.getNorth()).gte('lng',b.getWest()).lte('lng',b.getEast()).limit(200);
+ const have=new Set(parches.map(p=>p.id)),add=(data||[]).filter(p=>!have.has(p.id));if(add.length){parches=parches.concat(add);drawMap()}},500)}
+const ocm=window.openCreateModal;window.openCreateModal=function(){ocm&&ocm.apply(this,arguments);const t=$('newParcheLoc');if(t)t.textContent=pickLoc?'📍 Ubicación elegida en el mapa':(me?'📍 Se usará tu ubicación actual':'⚠️ Activa tu ubicación o elígela en el mapa')};
+const ccm=window.closeCreateModal;window.closeCreateModal=function(){ccm&&ccm.apply(this,arguments);pickLoc=null};
+async function notifMenu(sub){const {data}=await sb.from('push_subs').select('want_msgs,want_near').eq('endpoint',sub.endpoint).maybeSingle(),w=data||{want_msgs:true,want_near:true};
+ let o=$('notifOv');if(!o){o=document.createElement('div');o.id='notifOv';o.className='fixed inset-0 z-[90] bg-black/80 flex items-end justify-center';document.body.appendChild(o)}
+ const row=(k,t,on)=>`<button data-act="np" data-k="${k}" class="w-full flex items-center justify-between py-2.5 text-xs text-white"><span>${t}</span><span class="${on?'text-emerald-400':'text-gray-500'} font-bold">${on?'Activado':'Apagado'}</span></button>`;
+ o.innerHTML=`<div class="bg-[#1f1635] w-full max-w-md rounded-t-3xl p-4"><div class="flex justify-between mb-2"><b class="text-white text-sm">🔔 Notificaciones</b><button onclick="document.getElementById('notifOv').remove()" class="text-gray-400">✕</button></div>${row('want_msgs','💬 Mensajes nuevos',w.want_msgs)}${row('want_near','📍 Parches nuevos a menos de 1 km',w.want_near)}<button data-act="np" data-k="off" class="w-full mt-3 bg-red-600/80 text-white py-2.5 rounded-xl text-xs font-bold">Desactivar todas en este dispositivo</button></div>`}
+async function notifSet(k){const sub=NATIVE?(fcmTok?{endpoint:'fcm:'+fcmTok}:null):swReg&&await swReg.pushManager.getSubscription();if(!sub)return;
+ if(k==='off'){$('notifOv')?.remove();await pushOff();return toast('Notificaciones desactivadas','fa-bell-slash')}
+ const {data}=await sb.from('push_subs').select(k).eq('endpoint',sub.endpoint).maybeSingle();await sb.from('push_subs').update({[k]:!(data&&data[k])}).eq('endpoint',sub.endpoint);notifMenu(sub)}
+async function askNotifOnce(){if(NATIVE){const P=CP('PushNotifications');if(!P||await kget('notifAsked'))return;if(!['prompt','prompt-with-rationale'].includes((await P.checkPermissions()).receive))return}else if(!swReg||!('Notification' in window)||Notification.permission!=='default'||await kget('notifAsked'))return;kset('notifAsked',1);
+ const o=document.createElement('div');o.id='notifAsk';o.className='fixed inset-x-3 bottom-24 z-[90] bg-[#1f1635] border border-pink-500/40 rounded-2xl p-4 shadow-2xl';
+ o.innerHTML='<b class="text-white text-sm block mb-1">🔔 ¿Te avisamos de lo que pasa?</b><p class="text-[11px] text-gray-300 mb-3">Mensajes nuevos y parches nuevos a menos de 1 km, incluso con la app cerrada. Puedes apagarlo cuando quieras.</p><div class="flex gap-2"><button data-act="nyes" class="flex-1 bg-pink-600 text-white py-2 rounded-xl text-xs font-bold">Activar</button><button data-act="nno" class="flex-1 bg-[#2d234a] text-gray-300 py-2 rounded-xl text-xs font-bold">Ahora no</button></div>';document.body.appendChild(o)}
+const tfmt=t=>{const ms=new Date(t)-Date.now();if(ms<=0)return '⏰ Vencido · renueva para que vuelva a verse';const m=Math.floor(ms/6e4),h=Math.floor(m/60),d=Math.floor(h/24);return '⏳ Quedan '+(d?d+' d '+(h%24)+' h':h?h+' h '+(m%60)+' min':m+' min')};
+const keep=p=>!p.expires_at||new Date(p.expires_at)>Date.now()||p.author===uid;
+async function renewP(id){const h=parseInt(prompt('¿Cuántas horas más quieres que dure? (1 a 72)','24'),10);if(!h)return;
+ const {data,error}=await sb.rpc('renew_parche',{p_id:id,p_hours:Math.min(72,Math.max(1,h))});if(error)return toast('No pude renovar el parche','fa-triangle-exclamation');
+ const p=parches.find(x=>x.id===id);if(p)p.expires_at=data;renderFeed();if(lmap)drawMap();toast('⏳ ¡Tiempo renovado!','fa-clock')}
+/* --- amigos --- */
+const fr=new Map();
+const frBtn=id=>{const f=fr.get(id),c='mt-1 px-2 py-0.5 rounded-lg text-[9px] font-bold ';
+ if(!f)return `<button data-act="fradd" data-id="${id}" class="${c}bg-pink-600 text-white">➕ Agregar</button>`;
+ if(f.status==='accepted')return `<span class="${c}text-emerald-300">✅ Amigos</span>`;
+ if(f.dir==='out')return `<span class="${c}text-gray-400">⏳ Enviada</span>`;
+ return `<button data-act="fracc" data-id="${f.id}" class="${c}bg-emerald-600 text-white">Aceptar</button>`};
+function updFrBtn(){const n=[...fr.values()].filter(f=>f.status==='pending'&&f.dir==='in').length,b=$('frBtn');if(b)b.textContent='👥 Amigos y solicitudes'+(n?` (${n})`:'')}
+async function loadFr(){if(!sb||!uid){fr.clear();updFrBtn();return}const {data}=await sb.from('friendships').select('id,requester,addressee,status');fr.clear();
+ (data||[]).forEach(f=>fr.set(f.requester===uid?f.addressee:f.requester,{id:f.id,status:f.status,dir:f.requester===uid?'out':'in'}));updFrBtn();drawRadar();loadFS()}
+async function loadFS(){fsMap={};const ids=[...fr.entries()].filter(([,f])=>f.status==='accepted').map(x=>x[0]);if(!ids.length)return;
+ const {data}=await sb.from('shares').select('parche_id,user_id').in('user_id',ids).limit(200);if(!data||!data.length)return;await nameFor(ids);
+ data.forEach(s=>{(fsMap[s.parche_id]=fsMap[s.parche_id]||[]).push(names[s.user_id]||'Un amigo')});
+ const need=Object.keys(fsMap).filter(i=>!parches.find(p=>p.id===i));
+ if(need.length){const r=await sb.from('parches').select('id,title,zone,tag,cat,lat,lng,img,author,fuegos,created_at,expires_at').in('id',need);parches=[...parches,...(r.data||[])].filter(keep)}renderFeed()}
+async function frAdd(id){const {error}=await sb.from('friendships').insert({requester:uid,addressee:id});if(error)return toast(error.code==='23505'?'Ya hay una solicitud entre ustedes':'No pude enviar la solicitud','fa-user-plus');toast('🤝 Solicitud enviada','fa-user-plus');loadFr()}
+async function frAcc(fid){const {error}=await sb.from('friendships').update({status:'accepted'}).eq('id',fid);if(error)return toast('No pude aceptar','fa-triangle-exclamation');toast('🎉 ¡Ahora son amigos!','fa-user-plus');await loadFr();if($('friendsOv'))showFriends()}
+async function frDel(fid){await sb.from('friendships').delete().eq('id',fid);await loadFr();if($('friendsOv'))showFriends()}
+async function showFriends(){await loadFr();const all=[...fr.entries()];await nameFor(all.map(x=>x[0]));
+ const nm=i=>esc(names[i]||'Parchero'),B=(a,id,t,c)=>`<button data-act="${a}" data-id="${id}" class="${c} px-2.5 py-1 rounded-lg text-[10px] font-bold text-white">${t}</button>`,
+ row=(i,b)=>`<div class="flex items-center justify-between gap-2 py-1.5"><b class="text-xs text-white truncate">${nm(i)}</b><div class="flex gap-1.5 shrink-0">${b}</div></div>`,
+ sec=(t,r)=>r.length?`<div class="text-[11px] font-bold text-purple-300 mt-3 mb-1">${t}</div>${r.join('')}`:'',
+ inc=all.filter(([,f])=>f.status==='pending'&&f.dir==='in').map(([i,f])=>row(i,B('fracc',f.id,'Aceptar','bg-emerald-600')+B('frdel',f.id,'Rechazar','bg-red-600/80'))),
+ out=all.filter(([,f])=>f.status==='pending'&&f.dir==='out').map(([i,f])=>row(i,B('frdel',f.id,'Cancelar','bg-gray-600'))),
+ fri=all.filter(([,f])=>f.status==='accepted').map(([i,f])=>row(i,`<button data-act="chat" data-id="${i}" data-name="${nm(i)}" class="bg-purple-600 px-2.5 py-1 rounded-lg text-[10px] font-bold text-white">Chatear</button>`+B('frdel',f.id,'Quitar','bg-gray-600')));
+ let o=$('friendsOv');if(!o){o=document.createElement('div');o.id='friendsOv';o.className='fixed inset-0 z-[90] bg-black/80 flex items-end justify-center';document.body.appendChild(o)}
+ o.innerHTML=`<div class="bg-[#1f1635] w-full max-w-md rounded-t-3xl p-4 max-h-[75vh] overflow-y-auto"><div class="flex justify-between mb-1"><b class="text-white text-sm">👥 Amigos</b><button onclick="document.getElementById('friendsOv').remove()" class="text-gray-400">✕</button></div>${sec('Solicitudes recibidas',inc)}${sec('Solicitudes enviadas',out)}${sec('Tus amigos ('+fri.length+')',fri)}${all.length?'':'<p class="text-xs text-gray-400 mt-3">Aún no tienes amigos. Agrégalos desde el radar 👋</p>'}</div>`}
+/* --- app Android (Capacitor): notificaciones FCM, Google y galería --- */
+const NATIVE=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
+const CP=n=>window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins[n];
+let fcmTok=null;
+async function saveTok(){if(!sb||!uid||!fcmTok)return;await sb.from('push_subs').upsert({user_id:uid,endpoint:'fcm:'+fcmTok,p256dh:'-',auth:'-'},{onConflict:'endpoint'})}
+async function nativeInit(){const P=CP('PushNotifications'),A=CP('App');
+ if(A)A.addListener('appUrlOpen',async({url})=>{if(!url||!url.startsWith('com.veltrix.parchate://login-callback'))return;try{CP('Browser').close()}catch(e){}
+  const u=new URL(url),code=u.searchParams.get('code');
+  if(code){const {error}=await sb.auth.exchangeCodeForSession(code);if(error)toast('No pude completar el ingreso con Google','fa-triangle-exclamation')}
+  else{const h=new URLSearchParams(u.hash.replace(/^#/,''));if(h.get('access_token'))await sb.auth.setSession({access_token:h.get('access_token'),refresh_token:h.get('refresh_token')})}});
+ if(!P)return;
+ P.addListener('registration',async t=>{fcmTok=t.value;kset('fcmTok',fcmTok);await saveTok();bellUI()});
+ P.addListener('registrationError',()=>toast('No pude registrar las notificaciones','fa-triangle-exclamation'));
+ P.addListener('pushNotificationReceived',n=>toast('🔔 '+(n.title||'Párchate')+(n.body?': '+n.body:''),'fa-bell'));
+ P.addListener('pushNotificationActionPerformed',a=>{const d=(a.notification&&a.notification.data)||{};if(d.chat)requireAuthAction(()=>openChatDetail(d.chat));else if(d.parche){switchTab('tab-descubrir');load()}});
+ fcmTok=(await kget('fcmTok'))||null;try{const r=await P.checkPermissions();if(r.receive==='granted')P.register()}catch(e){}}
+function fixGallery(){const h=[...document.querySelectorAll('h3')].find(x=>/Galer/i.test(x.textContent));if(h)h.innerHTML='<i class="fa-solid fa-photo-film text-pink-500"></i> Fotos';
+ const g=$('userMediaGallery');if(g)g.innerHTML='<div class="bg-[#1f1635] p-3 rounded-xl text-center text-[11px] text-gray-400 border border-purple-900/30 col-span-2">Aún no has subido fotos.</div>'}
+async function loadGallery(){const g=$('userMediaGallery');if(!g||!sb||!uid)return;
+ const {data}=await sb.from('parches').select('id,img,title').eq('author',uid).not('img','is',null).order('created_at',{ascending:false}).limit(60);
+ if(data&&data.length)g.innerHTML=data.map(p=>`<img src="${esc(p.img)}" alt="${esc(p.title)}" loading="lazy" class="w-full h-28 object-cover rounded-xl border border-purple-900/30">`).join('')}
+window.executeDeleteAccount=async function(){closeDeleteModal();
+ if(!sb||!uid)return toast('Entra a tu cuenta para eliminarla','fa-user');
+ toast('Eliminando tu cuenta…','fa-trash-can');try{await pushOff()}catch(e){}
+ const {error}=await sb.functions.invoke('delete-account');if(error)return toast('No pude eliminar la cuenta. Intenta de nuevo o escríbenos.','fa-triangle-exclamation');
+ try{await sb.auth.signOut()}catch(e){}try{localStorage.clear();const d=await idb;if(d)d.transaction('kv','readwrite').objectStore('kv').clear()}catch(e){}
+ toast('Tu cuenta y tus datos fueron eliminados','fa-check-double');setTimeout(()=>location.reload(),1500)};
+async function banner(){const inApp=/; wv\)/.test(navigator.userAgent)||!!window.Capacitor||document.referrer.startsWith('android-app://')||matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches;
+ let flag=null;try{if(inApp)localStorage.setItem('pch_app','1');flag=localStorage.getItem('pch_app')}catch(e){}if(inApp||flag)return;const t=await kget('donbn');if(t&&Date.now()-t<6048e5)return;const c=$('dynamicParchesContainer');if(!c||$('donBanner'))return;
+ c.insertAdjacentHTML('beforebegin',`<div id="donBanner" class="bg-gradient-to-r from-purple-900/70 to-pink-900/60 border border-pink-500/40 rounded-2xl p-3 mb-3 flex items-center gap-3"><div class="text-2xl">💜</div><div class="flex-1 min-w-0"><b class="text-xs text-white block">Ayuda a mantener Párchate</b><span class="text-[10px] text-pink-100">Dona por Nequi para pagar los servidores: <b>301 791 5260</b></span></div><div class="flex flex-col gap-1 items-end"><button data-act="copynq" class="bg-pink-600 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold">Copiar</button><button data-act="closenq" class="text-gray-300 text-[10px]">Ahora no</button></div></div>`)}
+
+document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b){const mm=e.target.closest('[data-msg]');if(mm)openMessageOptions(mm.dataset.msg,mm.dataset.kind,mm.dataset.ctx);return}const a=b.dataset.act,id=b.dataset.id,p=parches.find(x=>x.id===id);
+ if(a==='ubicar'&&p)window.open(p.lat!=null?`https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.title+' '+p.zone+' Medellin')}`,'_blank');
+ else if(a==='grupo')requireAuthAction(()=>openGroupChat(id,b.dataset.name))
+ else if(a==='key'){const k=prompt('Pega tu clave de Gemini (queda solo en este dispositivo). Vacía = quitarla:');if(k!==null){kset('gkey',k.trim());toast(k.trim()?'Clave guardada':'Clave eliminada','fa-key')}}
+ else if(a==='chat'){$('fullRadar')?.remove();$('friendsOv')?.remove();requireAuthAction(()=>openChatDetail(id,b.dataset.name))}else if(a==='once'){if(viewed.has(id))return toast('🔒 Esta foto ya expiró.','fa-lock');viewed.add(id);kset('viewed',[...viewed]);$('ephemeralImageSrc').src=b.dataset.src;$('ephemeralViewsCounter').innerText='Visualizaciones restantes: 0';$('ephemeralViewerModal').classList.remove('hidden');b.outerHTML='<div class="text-[11px] text-gray-500 font-bold">🔒 Foto expirada</div>'}else if(a==='copynq'){navigator.clipboard?.writeText('3017915260');toast('Número de Nequi copiado 💜','fa-copy')}else if(a==='closenq'){$('donBanner')?.remove();kset('donbn',Date.now())}else if(!sb)toast(NOSB,'fa-triangle-exclamation');
+ else if(a==='repm'||a==='blkm'){const mid=selectedMessageRef&&selectedMessageRef.id,el=$('msg_'+mid),tu=el&&el.dataset.sender;closeMessageOptions();if(!tu||tu===uid)return toast('No puedes hacerlo con tu propio mensaje','fa-ban');a==='repm'?report({target_user:tu,message_id:mid}):block(tu)}else if(a==='fradd')requireAuthAction(()=>frAdd(id));else if(a==='fracc')frAcc(id);else if(a==='frdel')frDel(id);else if(a==='frl')requireAuthAction(showFriends);else if(a==='renew')requireAuthAction(()=>renewP(id));else if(a==='np')notifSet(b.dataset.k);else if(a==='nyes'){$('notifAsk')?.remove();requestNotificationPermission()}else if(a==='nno')$('notifAsk')?.remove();else if(a==='crear')requireAuthAction(()=>openCreateModal());else if(a==='crearaqui'){if(pickTmp){pickLoc={lat:pickTmp.lat,lng:pickTmp.lng};lmap.closePopup();requireAuthAction(()=>openCreateModal())}}else if(a==='elegirmapa'){closeCreateModal();switchTab('tab-descubrir');switchFeedView('mapa');toast('Toca el mapa y elige «Crear parche aquí»','fa-map-location-dot')}else if(a==='blkl')requireAuthAction(showBlocked);else if(a==='unblk')unblock(id);else if(a==='repp')requireAuthAction(()=>report({parche_id:id,target_user:p?.author||null}));else if(a==='fuego')requireAuthAction(()=>fuego(id));else if(a==='opino')requireAuthAction(()=>opino(id));else if(a==='share')requireAuthAction(()=>share(id))});
+
+/* --- guardado local de chats y arranque --- */
+addEventListener('offline',()=>toast('Sin internet','fa-wifi'));addEventListener('online',()=>{toast('Conectado','fa-wifi');load()});
+(async function(){
+ buildHeader();initSW();iconFallback();fixGallery();const pw=document.getElementById('regEmailInput');if(pw)pw.insertAdjacentHTML('afterend',`<input id="regPassInput" type="password" placeholder="Contraseña (mínimo 6)" class="${pw.className}" style="margin-top:6px">`);
+ $('regPassInput')?.insertAdjacentHTML('afterend','<label class="flex items-start gap-2 text-[10px] text-gray-300 mt-2"><input id="regAge18" type="checkbox" class="mt-0.5"><span>Confirmo que tengo <b>18 años o más</b> y acepto los <a href="/terminos.html" target="_blank" class="text-pink-400 underline">Términos</a>, la <a href="/privacidad.html" target="_blank" class="text-pink-400 underline">Privacidad</a> y la <a href="/seguridad-infantil.html" target="_blank" class="text-pink-400 underline">Seguridad infantil</a>.</span></label>');
+ $('chatsListContainer')?.insertAdjacentHTML('beforebegin','<div class="flex gap-4 mb-2"><button data-act="frl" id="frBtn" class="text-[11px] text-pink-300 underline">👥 Amigos y solicitudes</button><button data-act="blkl" class="text-[11px] text-gray-400 underline">🚫 Usuarios bloqueados</button></div>');const mo=$('messageOptionsModal');if(mo)(mo.firstElementChild||mo).insertAdjacentHTML('beforeend','<button data-act="repm" class="w-full text-left px-4 py-2.5 text-xs font-bold text-orange-300">🚩 Reportar mensaje</button><button data-act="blkm" class="w-full text-left px-4 py-2.5 text-xs font-bold text-red-400">🚫 Bloquear a esta persona</button>');
+ document.querySelectorAll('[onclick="enterAsAdminQuick()"]').forEach(x=>x.style.display='none');
+ const z=document.getElementById('newParcheZone');if(z)z.insertAdjacentHTML('afterend','<input id="newParcheImg" type="file" accept="image/*" class="w-full text-[11px] text-gray-300 mt-2">');
+ $('newParcheImg')?.insertAdjacentHTML('afterend','<div id="newParcheLoc" class="text-[11px] text-pink-300 mt-2"></div><button type="button" data-act="elegirmapa" class="text-[11px] text-purple-300 underline mt-1">🗺️ Elegir ubicación en el mapa</button><div class="text-[11px] text-gray-300 mt-3">⏳ ¿Cuánto dura el parche?</div><select id="newParcheDur" class="w-full bg-[#2d234a] text-white rounded-xl p-2 text-xs mt-1 border border-purple-500/30"><option value="3">3 horas</option><option value="6">6 horas</option><option value="12">12 horas</option><option value="24" selected>24 horas</option><option value="48">2 días</option><option value="72">3 días</option></select>');
+ const sl=document.getElementById('radarKmSlider');if(sl){sl.min=.1;sl.max=1;sl.step=.1;sl.value=1}
+ parches=seed();renderFeed();viewed=new Set((await kget('viewed'))||[]);banner();loadChats();setInterval(()=>{document.querySelectorAll('[data-exp]').forEach(e=>e.textContent=tfmt(e.dataset.exp));const n=parches.length;parches=parches.filter(keep);if(parches.length!==n){renderFeed();if(lmap)drawMap();drawRadar()}},3e4);
+ if(!sb){toast(NOSB,'fa-triangle-exclamation');return}
+ sb.auth.onAuthStateChange((_e,s)=>setTimeout(()=>onSession(s),0));
+ await load();locate();setInterval(locate,12e4);setInterval(()=>{if(!document.hidden){load();if(uid)loadFr();else drawRadar()}},12e4);
+ 
+ 
+})();
+})();
+</script>
+
+</body>
+</html>
