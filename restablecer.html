@@ -1,0 +1,12 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Nueva contraseña · Párchate</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>body{font-family:system-ui,sans-serif;background:#0f0c1b;color:#e5e7eb;max-width:420px;margin:0 auto;padding:28px;line-height:1.5}h1{color:#ec4899}input{width:100%;box-sizing:border-box;padding:14px;border-radius:12px;border:1px solid #6d28d9;background:#1f1635;color:#fff;font-size:17px;margin:8px 0}button{width:100%;padding:14px;border:0;border-radius:12px;background:#ec4899;color:#fff;font-weight:700;font-size:17px;margin-top:8px}#m{margin-top:14px;font-size:16px}</style></head><body>
+<h1>Crea tu nueva contraseña</h1><p id="p">Abre este enlace desde el correo que te enviamos.</p>
+<div id="f" style="display:none"><input id="a" type="password" placeholder="Nueva contraseña (mínimo 6)"><input id="b" type="password" placeholder="Repite la contraseña"><button onclick="go()">Guardar contraseña</button></div><div id="m"></div>
+<script>
+const sb=supabase.createClient('https://ofqdizboaexkjjhwtmgs.supabase.co','sb_publishable_pfLexW8EDmF9-_SRjaiKWQ_y16Yar5f');
+sb.auth.onAuthStateChange((e)=>{if(e==='PASSWORD_RECOVERY'||e==='SIGNED_IN'){document.getElementById('f').style.display='block';document.getElementById('p').textContent='Escribe tu nueva contraseña.'}});
+async function go(){const a=document.getElementById('a').value,b=document.getElementById('b').value,m=document.getElementById('m');
+ if(a.length<6)return m.textContent='Mínimo 6 caracteres.';if(a!==b)return m.textContent='Las contraseñas no coinciden.';
+ const {error}=await sb.auth.updateUser({password:a});m.textContent=error?('No se pudo guardar: '+error.message):'✅ Listo. Vuelve a la app de Párchate y entra con tu correo y la nueva contraseña.'}
+</script></body></html>
