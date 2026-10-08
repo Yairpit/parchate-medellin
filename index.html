@@ -2092,7 +2092,7 @@ async function delParche(id){const p=parches.find(x=>x.id===id);if(!p||!confirm(
  const {error}=await sb.from('parches').delete().eq('id',id);if(error)return toast('No pude eliminar el parche','fa-triangle-exclamation');
  if(p.img)rmPhoto(p.img);parches=parches.filter(x=>x.id!==id);renderFeed();if(lmap)drawMap();drawRadar();toast('🗑️ Parche eliminado','fa-trash-can')}
 /* --- anuncios (AdMob) y compra «quitar anuncios» --- */
-const ADS={banner:'ca-app-pub-3940256099942544/6300978111',rewarded:'ca-app-pub-3940256099942544/5224354917',product:'remove_ads',testing:true,margin:72,freeHours:72,showBanner:true};
+const ADS={banner:'ca-app-pub-3940256099942544/6300978111',rewarded:'ca-app-pub-3940256099942544/5224354917',product:'remove_ads',testing:true,margin:72,freeHours:72,showBanner:false};
 let adsRemoved=false,bannerState='none';
 const NP=()=>CP('NativePurchases');
 async function checkAds(){adsRemoved=!!(await kget('adsRemoved'));const P=NP();
