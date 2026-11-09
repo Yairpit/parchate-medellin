@@ -419,6 +419,7 @@ g.addEventListener('click',function(e){
                 <div id="myItemsBox" class="mb-4" style="display:none"></div>
 
                 <div class="bg-[#1f1635] border border-purple-500/30 rounded-2xl p-3 mb-4 flex items-center justify-between"><span class="text-sm text-white">🌐 Idioma / Language</span><div class="flex gap-2"><button data-lang="es" class="bg-[#2d234a] text-white px-3 py-1.5 rounded-lg text-xs font-bold">🇨🇴 Español</button><button data-lang="en" class="bg-[#2d234a] text-white px-3 py-1.5 rounded-lg text-xs font-bold">🇬🇧 English</button></div></div>
+                <div id="dmPrivCard" class="bg-[#1f1635] border border-purple-500/30 rounded-2xl p-3 mb-4"><span class="text-sm text-white block mb-2">💬 ¿Quién puede escribirme?</span><div class="grid grid-cols-3 gap-2"><button data-dm="all" class="bg-[#2d234a] text-white py-2 rounded-lg text-xs font-bold">Todos</button><button data-dm="friends" class="bg-[#2d234a] text-white py-2 rounded-lg text-xs font-bold">Solo amigos</button><button data-dm="none" class="bg-[#2d234a] text-white py-2 rounded-lg text-xs font-bold">Nadie</button></div><p id="dmPrivHint" class="text-[11px] text-gray-400 mt-2"></p></div>
                 <div id="commCard" class="bg-[#1f1635] border border-pink-500/40 rounded-2xl p-4 mb-4">
                     <b class="text-white text-base block">💜 Súmate a la comunidad Párchate</b>
                     <p class="text-sm text-gray-300 mt-1 mb-3">Síguenos para enterarte de los mejores planes de Medellín e invita a tus parceros.</p>
@@ -550,17 +551,7 @@ g.addEventListener('click',function(e){
                     <h3 class="font-bold text-xs text-pink-400">Opciones de Mensaje</h3>
                     <button onclick="closeMessageOptions()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                <div class="space-y-1.5 text-xs">
-                    <button onclick="copyCurrentSelectedMessage()" class="w-full text-left px-3 py-2 rounded-xl bg-[#120c22] hover:bg-purple-900/50 text-purple-200 flex items-center gap-2">
-                        <i class="fa-solid fa-copy text-pink-400"></i> Copiar texto
-                    </button>
-                    <button onclick="setSingleMessageTimer()" class="w-full text-left px-3 py-2 rounded-xl bg-[#120c22] hover:bg-purple-900/50 text-amber-300 flex items-center gap-2">
-                        <i class="fa-solid fa-clock"></i> Poner temporizador
-                    </button>
-                    <button onclick="deleteSelectedMessage()" class="w-full text-left px-3 py-2 rounded-xl bg-red-950/40 border border-red-500/30 hover:bg-red-900/50 text-red-300 flex items-center gap-2">
-                        <i class="fa-solid fa-trash-can"></i> Eliminar mensaje
-                    </button>
-                </div>
+                <div id="msgOptList" class="space-y-1.5 text-xs"></div>
             </div>
         </div>
 
@@ -2065,10 +2056,10 @@ const hhmm=t=>new Date(t).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-d
 const att=(id,t)=>{const e=$(id);if(e&&!e._pb){e._pb=1;attachRichInputListeners(id,t)}};
 async function nameFor(ids){const need=[...new Set(ids)].filter(i=>i&&!names[i]);if(!need.length||!uid)return;const {data}=await sb.from('profiles').select('id,name').in('id',need);(data||[]).forEach(x=>names[x.id]=x.name)}
 const box=()=>$(chat.t==='g'?'groupChatMessages':'chatDetailMessages');
-function mhtml(m){const me=m.sender===uid;let c;
+function mhtml(m){if(msgHidden(m.created_at,chat&&chat.id))return '';const me=m.sender===uid;let c;
  if(m.kind==='photo')c=m.view_once?(viewed.has(m.id)?'<div class="text-[11px] text-gray-500 font-bold">🔒 Foto expirada</div>':`<button data-act="once" data-id="${m.id}" data-src="${esc(m.img)}" class="bg-gradient-to-r from-pink-900/80 to-purple-900/80 border border-pink-500/50 text-pink-200 px-3 py-1.5 rounded-xl text-[11px] font-bold">👁 Foto efímera (ver 1 vez)</button>`):`<img src="${esc(m.img)}" loading="lazy" class="w-48 h-36 object-cover rounded-xl mt-1">`;
  else c=`<p class="text-gray-200">${esc(m.text)}</p>`;
- return `<div id="msg_${m.id}" data-msg="${m.id}" data-sender="${m.sender}" data-kind="${esc(m.kind)}" data-ctx="${chat.t==='g'?'group':'private'}" class="p-2.5 rounded-2xl text-xs max-w-[85%] ${me?'bg-purple-900/60 rounded-tr-none ml-auto':'bg-[#2d234a] rounded-tl-none'}"><span class="font-bold text-pink-400 block text-[10px]">${me?'Tú':esc(names[m.sender]||'Parchero')}</span>${c}<span class="text-[9px] text-gray-400 mt-1 block">${hhmm(m.created_at)}</span></div>`}
+ return `<div id="msg_${m.id}" data-msg="${m.id}" data-sender="${m.sender}" data-ts="${m.created_at}" data-kind="${esc(m.kind)}" data-ctx="${chat.t==='g'?'group':'private'}" class="p-2.5 rounded-2xl text-xs max-w-[85%] ${me?'bg-purple-900/60 rounded-tr-none ml-auto':'bg-[#2d234a] rounded-tl-none'}"><span ${me?'':`data-prof="${m.sender}" style="width:fit-content"`} class="font-bold text-pink-400 block text-[10px]${me?'':' underline decoration-dotted'}">${me?'Tú':esc(names[m.sender]||'Parchero')}</span>${c}<span class="text-[9px] text-gray-400 mt-1 block">${hhmm(m.created_at)}</span></div>`}
 function addMsg(m){if($('msg_'+m.id))return;const b=box();b.insertAdjacentHTML('beforeend',mhtml(m));b.scrollTop=b.scrollHeight}
 async function loadMsgs(){const q=sb.from('messages').select('*').order('created_at',{ascending:false}).limit(100);
  const {data}=chat.t==='g'?await q.eq('group_id',chat.id):await q.is('group_id',null).or(`and(sender.eq.${uid},to_user.eq.${chat.id}),and(sender.eq.${chat.id},to_user.eq.${uid})`);
@@ -2105,32 +2096,32 @@ async function pollUnread(){if(!sb||!uid||document.hidden)return;const t=$('tab-
  if(t&&t.classList.contains('active')&&gb&&!gb.classList.contains('hidden'))return loadGroups();
  const r=await sb.rpc('group_unread');if(r.error)return;unread={};(r.data||[]).forEach(x=>{unread[x.group_id]=Number(x.unread)||0});paintNav();privCheck()}
 setInterval(pollUnread,30000);addEventListener('pchlang',()=>{if(uid)loadGroups()});
-async function loadGroups(){if(!sb||!uid)return;const c=$('chatGroupsList');if(!c)return;
- const [g,m]=await Promise.all([sb.from('groups').select('id,name,emoji,descr').order('created_at'),sb.from('group_members').select('group_id').eq('user_id',uid)]);
+async function loadGroups(){if(!sb||!uid)return;const c=$('chatGroupsList');if(!c)return;await loadPrefs();
+ const [g,m]=await Promise.all([sb.from('groups').select('id,name,emoji,descr,owner,ttl_hours,ttl_since').order('created_at'),sb.from('group_members').select('group_id').eq('user_id',uid)]);
  if(m.error){c.innerHTML='<p class="text-xs text-gray-400 p-2">Falta crear la tabla de miembros en Supabase.</p>';return}
  if(!(await kget('gdef'))){const d=(g.data||[]).filter(x=>Object.values(DEF).includes(x.id));if(d.length)await sb.from('group_members').upsert(d.map(x=>({group_id:x.id,user_id:uid})));await kset('gdef',1);return loadGroups()}
- myG=new Set((m.data||[]).map(x=>x.group_id));window._allG=g.data||[];const mine=window._allG.filter(x=>myG.has(x.id));
+ myG=new Set((m.data||[]).map(x=>x.group_id));window._allG=g.data||[];const mine=window._allG.filter(x=>myG.has(x.id)||(pf(x.id).left_group&&!pf(x.id).hidden));
  const ids=mine.map(x=>x.id),[ur,...ls]=await Promise.all([sb.rpc('group_unread'),...ids.map(id=>sb.from('messages').select('sender,text,kind,created_at').eq('group_id',id).order('created_at',{ascending:false}).limit(1))]);
- unread={};(ur.data||[]).forEach(r=>{unread[r.group_id]=Number(r.unread)||0});const lastM={};ids.forEach((id,k)=>{lastM[id]=(ls[k].data||[])[0]||null});
+ unread={};(ur.data||[]).forEach(r=>{unread[r.group_id]=Number(r.unread)||0});const lastM={};ids.forEach((id,k)=>{lastM[id]=(ls[k].data||[]).find(m=>!msgHidden(m.created_at,id))||null});
  mine.sort((a,b)=>((unread[b.id]||0)>0)-((unread[a.id]||0)>0)||new Date(lastM[b.id]?lastM[b.id].created_at:0)-new Date(lastM[a.id]?lastM[a.id].created_at:0));
  await nameFor(Object.values(lastM).filter(Boolean).map(m=>m.sender));
  const EN=window.PCH_LANG==='en',you=EN?'You':'Tú',pho=EN?'📷 Photo':'📷 Foto';
  c.innerHTML=mine.length?mine.map(x=>{const m=lastM[x.id],n=unread[x.id]||0,pv=m?(m.sender===uid?you:esc(names[m.sender]||'Parchero'))+': '+(m.kind==='photo'?pho:esc(String(m.text||'').slice(0,80))):esc(x.descr||'');
-  return `<div data-act="grupo" data-id="${x.id}" data-name="${esc(x.name+' '+x.emoji)}" class="bg-[#1f1635] border ${n?'border-pink-500/70':'border-purple-500/40'} rounded-2xl p-3 flex items-center gap-2.5 cursor-pointer active:scale-[.99] transition"><div class="w-10 h-10 shrink-0 rounded-2xl bg-gradient-to-tr from-pink-600 to-purple-600 flex items-center justify-center text-xl">${esc(x.emoji)}</div><div class="flex-1 min-w-0"><h3 class="font-black text-sm text-white truncate">${esc(x.name)}</h3><p class="text-[10px] ${n?'text-white font-bold':'text-purple-200'} truncate">${pv}</p></div>${n?`<span class="shrink-0 min-w-[26px] h-[26px] px-2 rounded-full bg-pink-600 text-white text-xs font-black flex items-center justify-center">${n>99?'99+':n}</span>`:''}<button data-act="gleave" data-id="${x.id}" class="shrink-0 text-gray-400 text-sm px-1.5" title="Salir">🚪</button></div>`}).join(''):'<p class="text-xs text-gray-400 p-2 text-center">Aún no estás en ningún grupo. Toca Explorar grupos u Opino en un evento ✨</p>';paintNav()}
+  return `<div data-act="${myG.has(x.id)?'grupo':'gleft'}" data-id="${x.id}" data-name="${esc(x.name+' '+x.emoji)}" class="bg-[#1f1635] border ${n?'border-pink-500/70':'border-purple-500/40'} rounded-2xl p-3 flex items-center gap-2.5 cursor-pointer active:scale-[.99] transition"><div class="w-10 h-10 shrink-0 rounded-2xl bg-gradient-to-tr from-pink-600 to-purple-600 flex items-center justify-center text-xl">${esc(x.emoji)}</div><div class="flex-1 min-w-0"><h3 class="font-black text-sm text-white truncate">${esc(x.name)}</h3><p class="text-[10px] ${n?'text-white font-bold':'text-purple-200'} truncate">${pv}</p></div>${n?`<span class="shrink-0 min-w-[26px] h-[26px] px-2 rounded-full bg-pink-600 text-white text-xs font-black flex items-center justify-center">${n>99?'99+':n}</span>`:''}${myG.has(x.id)?`<button data-act="gleave" data-id="${x.id}" class="shrink-0 text-gray-400 text-sm px-1.5" title="Salir">🚪</button>`:'<span class="shrink-0 text-[10px] text-gray-400 border border-gray-600 rounded-full px-2 py-0.5">Saliste</span>'}</div>`}).join(''):'<p class="text-xs text-gray-400 p-2 text-center">Aún no estás en ningún grupo. Toca Explorar grupos u Opino en un evento ✨</p>';paintNav()}
 window.switchChatSub=k=>{$('chatsListContainer').classList.toggle('hidden',k==='g');$('chatGroupsBox').classList.toggle('hidden',k!=='g');const on='bg-pink-600 text-white font-bold',off='text-gray-400 font-medium';$('csub-p').className='flex-1 py-2 rounded-lg '+(k==='g'?off:on);$('csub-g').className='flex-1 py-2 rounded-lg '+(k==='g'?on:off);if(k==='g')loadGroups();else privClear()};
 window.exploreGroups=async function(){await loadGroups();const o=(window._allG||[]).filter(x=>!myG.has(x.id));const cnt={};try{const r=await sb.from('group_members').select('group_id').in('group_id',o.map(x=>x.id)).limit(5000);(r.data||[]).forEach(x=>{cnt[x.group_id]=(cnt[x.group_id]||0)+1})}catch(e){}o.sort((a,b)=>(cnt[b.id]||0)-(cnt[a.id]||0));ov('grpExpOv',`<div class="${SH}"><div class="flex justify-between mb-3"><b class="text-white text-sm">🔎 Explorar grupos</b><button onclick="this.closest('#grpExpOv').remove()" class="text-gray-400">✕</button></div>${o.length?o.map(x=>`<div class="flex items-center gap-2.5 mb-2"><span class="text-xl">${esc(x.emoji)}</span><div class="flex-1 min-w-0"><b class="text-white text-xs block truncate">${esc(x.name)}</b><span class="text-[10px] text-gray-400">${esc(x.descr||'')}${cnt[x.id]>0?' · 👥 '+cnt[x.id]:''}</span></div><button data-act="gjoin" data-id="${x.id}" class="bg-emerald-600 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold">Unirme</button></div>`).join(''):'<p class="text-xs text-gray-400 text-center">Ya estás en todos los grupos ✨</p>'}</div>`)};
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-act="gleave"],[data-act="gjoin"]');if(!b||!uid||!sb)return;const id=b.dataset.id;
- if(b.dataset.act==='gleave'){if(!confirm('¿Salir de este grupo?'))return;const r=await sb.from('group_members').delete().eq('group_id',id).eq('user_id',uid);if(r.error)return toast(r.error.message,'fa-triangle-exclamation');toast('Saliste del grupo','fa-door-open')}
- else{const r=await sb.from('group_members').upsert({group_id:id,user_id:uid});if(r.error)return toast(r.error.message,'fa-triangle-exclamation');toast('¡Te uniste! 🎉','fa-check');$('grpExpOv')?.remove();setTimeout(askNotifOnce,1500)}
+ if(b.dataset.act==='gleave'){if(!(await doLeave(id)))return}
+ else{await loadPrefs();await setPref(id,{left_group:false,hidden:false});const r=await sb.from('group_members').upsert({group_id:id,user_id:uid});if(r.error)return toast(r.error.message,'fa-triangle-exclamation');toast('¡Te uniste! 🎉','fa-check');$('grpExpOv')?.remove();setTimeout(askNotifOnce,1500)}
  loadGroups()});
 window.submitNewGroup=async function(){if(!sb||!uid)return;const name=v('newGroupName');if(!name)return;
  const {data,error}=await sb.from('groups').insert({name,emoji:v('newGroupEmoji')||'🎉',descr:v('newGroupDesc')||'Parche en Radar',owner:uid}).select('id').single();
  if(error)return toast(error.message,'fa-triangle-exclamation');await sb.from('group_members').upsert({group_id:data.id,user_id:uid});closeCreateGroupModal();toast('¡Grupo creado!','fa-check');loadGroups()};
 async function commonMap(people){const m={};if(!people.length||!myF.size)return m;const r=await sb.from('fuegos').select('user_id,parche_id').in('user_id',people.map(p=>p.id));(r.data||[]).forEach(x=>{if(!m[x.user_id]&&myF.has(x.parche_id)){const q=parches.find(z=>z.id===x.parche_id);if(q)m[x.user_id]='Va a '+q.title.slice(0,18)}});return m}
-async function loadChats(){const c=$('chatsListContainer');if(!c)return;
+async function loadChats(){const c=$('chatsListContainer');if(!c)return;await loadPrefs();
  if(!uid){c.innerHTML='<p class="text-xs text-gray-400 p-3">Regístrate para chatear con otras personas.</p>';return}
  const {data}=await sb.from('messages').select('sender,to_user,text,kind,created_at').not('to_user','is',null).order('created_at',{ascending:false}).limit(200),last=new Map();
- (data||[]).forEach(m=>{const o=m.sender===uid?m.to_user:m.sender;if(!last.has(o))last.set(o,m)});await nameFor([...last.keys()]);
+ (data||[]).forEach(m=>{const o=m.sender===uid?m.to_user:m.sender;if(msgHidden(m.created_at,o))return;if(!last.has(o))last.set(o,m)});await nameFor([...last.keys()]);
  c.innerHTML=[...last].map(([id,m])=>`<div class="bg-[#1f1635] border border-purple-900/50 rounded-2xl p-3 flex items-center justify-between gap-2"><div class="min-w-0"><b data-prof="${id}" class="text-sm text-white">${esc(names[id]||'Parchero')}</b><p class="text-[11px] text-gray-400 truncate">${m.kind==='photo'?'📷 Foto':esc(m.text)}</p></div><button data-act="chat" data-id="${id}" data-name="${esc(names[id]||'Parchero')}" class="bg-purple-600 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold">Abrir</button></div>`).join('')||'<p class="text-xs text-gray-400 p-3">Aún no tienes chats. Escríbele a alguien desde el radar 👋</p>'}
 const ost=window.switchTab;window.switchTab=function(t){ost(t);if(t==='tab-chats'){loadChats();const lc=$('chatsListContainer');if(lc&&!lc.classList.contains('hidden'))privClear()}if(t==='tab-mapa')setTimeout(drawRadar,80);if(t==='tab-miparche')setTimeout(loadGallery,80)}
 const ocg=window.closeGroupChat;window.closeGroupChat=function(){const g=chat&&chat.t==='g'?chat.id:null;ocg&&ocg();unwatchGroup();if(g)markRead(g).then(()=>{const t=$('tab-chats');if(t&&t.classList.contains('active'))loadGroups()})};
@@ -2145,6 +2136,69 @@ async function report(x){const reason=(prompt('¿Qué pasó? (acoso, contenido s
  const {error}=await sb.from('reports').insert({reporter:uid,reason,...x});toast(error?(error.code==='P0001'?error.message:'No pude enviar el reporte'):'Gracias, revisaremos tu reporte 🚩',error?'fa-triangle-exclamation':'fa-flag')}
 async function block(u){if(!confirm('¿Bloquear a esta persona? No podrán escribirse ni verse en el radar.'))return;const {error}=await sb.from('blocks').insert({blocker:uid,blocked:u});
  if(error&&error.code!=='23505')return toast('No pude bloquear','fa-triangle-exclamation');toast('Persona bloqueada 🚫','fa-ban');if(chat)loadMsgs();loadChats();drawRadar()}
+/* --- chats: temporizadores personales, vaciar, salir/eliminar, privacidad y menú de mensaje --- */
+let PF={},pfOk=false;
+const pf=k=>PF[k]||{};
+async function loadPrefs(force){if(!sb||!uid)return;if(pfOk&&!force)return;const {data,error}=await sb.from('chat_prefs').select('*').eq('user_id',uid);if(error)return;PF={};(data||[]).forEach(r=>{PF[r.chat_key]=r});pfOk=true}
+async function setPref(k,patch){if(!sb||!uid)return false;const o={...pf(k),...patch},row={user_id:uid,chat_key:k,ttl_hours:o.ttl_hours??null,ttl_since:o.ttl_since??null,cleared_at:o.cleared_at??null,left_group:!!o.left_group,hidden:!!o.hidden};
+ const {error}=await sb.from('chat_prefs').upsert(row,{onConflict:'user_id,chat_key'});if(error){toast('No pude guardar el ajuste','fa-triangle-exclamation');return false}PF[k]=row;return true}
+const grpOf=k=>(window._allG||[]).find(x=>x.id===k)||{};
+async function loadGroupMeta(id){if(!sb||!id)return;try{const {data}=await sb.from('groups').select('id,name,emoji,descr,owner,ttl_hours,ttl_since').eq('id',id).maybeSingle();if(data)window._allG=(window._allG||[]).filter(x=>x.id!==id).concat(data)}catch(e){}}
+function msgHidden(ts,k){if(!k||!ts)return false;const t=new Date(ts).getTime(),n=Date.now(),p=pf(k),g=grpOf(k);
+ if(p.cleared_at&&t<=new Date(p.cleared_at).getTime())return true;
+ if(p.ttl_hours&&p.ttl_since&&t>=new Date(p.ttl_since).getTime()&&n-t>p.ttl_hours*36e5)return true;
+ if(g.ttl_hours&&g.ttl_since&&t>=new Date(g.ttl_since).getTime()&&n-t>g.ttl_hours*36e5)return true;return false}
+setInterval(()=>{if(!chat||!uid)return;const b=box();if(!b)return;b.querySelectorAll('[data-ts]').forEach(el=>{if(msgHidden(el.dataset.ts,chat.id))el.remove()})},15000);
+const lastTs=()=>{const l=[...(box()?box().querySelectorAll('[data-ts]'):[])].pop();return l?l.dataset.ts:new Date().toISOString()};
+const hideMenus=()=>{$('groupOptionsMenu')?.classList.add('hidden');$('privateOptionsMenu')?.classList.add('hidden')};
+
+/* mensajes temporales */
+const TT=[[0,'Desactivado'],[24,'24 horas'],[168,'7 días'],[2160,'90 días']];
+const ttLbl=h=>(TT.find(x=>x[0]===(h||0))||[0,'Desactivado'])[1];
+window.setChatTimer=async function(){if(!chat||!uid)return;hideMenus();await loadPrefs();const k=chat.id,p=pf(k),g=chat.t==='g'?grpOf(k):{},adm=chat.t==='g'&&g.owner===uid;
+ const btn=(fn,h,cur)=>`<button onclick="${fn}(${h})" class="w-full text-left px-4 py-3 rounded-xl mb-1.5 text-sm font-bold ${cur===h?'bg-pink-600 text-white':'bg-[#120c22] text-purple-200 border border-purple-900/50'}">${ttLbl(h)}${cur===h?' ✓':''}</button>`;
+ ov('chatTimerOv',`<div class="${SH}"><div class="flex justify-between items-center mb-2"><b class="text-white text-base">⏳ Mensajes temporales</b><button onclick="document.getElementById('chatTimerOv').remove()" class="text-gray-400 text-xl px-2">✕</button></div><p class="text-xs text-gray-400 mb-3">Solo cambia lo que tú ves y cuenta desde que lo activas.${g.ttl_hours?` El administrador dejó <b class="text-amber-300">${ttLbl(g.ttl_hours)}</b> en este grupo: si el tuyo es más largo, manda el del administrador.`:''}</p>${TT.map(x=>btn('applyMyTimer',x[0],p.ttl_hours||0)).join('')}${adm?`<div class="border-t border-purple-900/50 mt-3 pt-3"><b class="text-pink-300 text-sm block mb-1">👑 Para todo el grupo (administrador)</b><p class="text-[11px] text-gray-400 mb-2">Los mensajes se borran para todos los miembros. Cuenta desde que lo activas.</p>${TT.map(x=>btn('applyGroupTimer',x[0],g.ttl_hours||0)).join('')}</div>`:''}</div>`)};
+window.applyMyTimer=async function(h){const k=chat&&chat.id;if(!k)return;const ok=await setPref(k,{ttl_hours:h||null,ttl_since:h?new Date().toISOString():null});$('chatTimerOv')?.remove();if(ok)toast(h?'⏳ Mensajes temporales: '+ttLbl(h):'Mensajes temporales desactivados','fa-clock')};
+window.applyGroupTimer=async function(h){const k=chat&&chat.id;if(!k)return;const r=await sb.rpc('set_group_ttl',{p_group:k,p_hours:h||null});$('chatTimerOv')?.remove();if(r.error)return toast(srvErr(r.error),'fa-triangle-exclamation');await loadGroupMeta(k);toast(h?'👑 Temporizador del grupo: '+ttLbl(h):'Temporizador del grupo desactivado','fa-clock')};
+
+/* vaciar / eliminar chat (solo para mí) */
+window.clearChatHistory=async function(){if(!chat||!uid)return;hideMenus();if(!confirm('¿Vaciar este chat? Solo se borra para ti; los demás siguen viendo sus mensajes.'))return;await loadPrefs();if(await setPref(chat.id,{cleared_at:lastTs()})){box().innerHTML='';toast('Chat vaciado','fa-broom');if(chat.t==='p')loadChats();else loadGroups()}};
+window.deletePrivateChat=async function(){if(!chat||chat.t!=='p')return;hideMenus();if(!confirm('¿Eliminar este chat? Solo se elimina para ti.'))return;await loadPrefs();if(await setPref(chat.id,{cleared_at:lastTs()})){closeChatDetail();loadChats();toast('Chat eliminado','fa-trash-can')}};
+
+/* salir / eliminar grupo */
+async function doLeave(id){if(!confirm('¿Salir de este grupo? Seguirá en tu lista como "Saliste" y podrás volver a entrar o eliminarlo.'))return false;const r=await sb.from('group_members').delete().eq('group_id',id).eq('user_id',uid);if(r.error){toast(r.error.message,'fa-triangle-exclamation');return false}await loadPrefs();await setPref(id,{left_group:true,hidden:false});toast('Saliste del grupo','fa-door-open');return true}
+window.leaveCurrentGroup=async function(){if(!chat||chat.t!=='g')return;hideMenus();const id=chat.id;if(!(await doLeave(id)))return;window.closeGroupChat();loadGroups()};
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-act="gleft"],[data-act="grejoin"],[data-act="gdelme"],[data-act="gdelall"]');if(!b||!uid||!sb)return;e.stopPropagation();const a=b.dataset.act,id=b.dataset.id;await loadPrefs();
+ if(a==='gleft'){await loadGroupMeta(id);const own=grpOf(id).owner===uid&&!Object.values(DEF).includes(id);ov('gleftOv',`<div class="${SH}"><div class="flex justify-between mb-3"><b class="text-white text-sm">Saliste de este grupo</b><button onclick="document.getElementById('gleftOv').remove()" class="text-gray-400 text-xl px-2">✕</button></div><button data-act="grejoin" data-id="${id}" class="w-full bg-emerald-600 text-white py-3 rounded-xl text-sm font-bold mb-2">↩️ Volver a entrar</button><button data-act="gdelme" data-id="${id}" class="w-full bg-[#2d234a] text-red-300 py-3 rounded-xl text-sm font-bold mb-2">🗑️ Eliminar de mi lista</button>${own?`<button data-act="gdelall" data-id="${id}" class="w-full bg-red-950/50 border border-red-500/40 text-red-300 py-3 rounded-xl text-sm font-bold">👑 Eliminar grupo para todos</button>`:''}</div>`);return}
+ if(a==='grejoin'){await setPref(id,{left_group:false,hidden:false});const r=await sb.from('group_members').upsert({group_id:id,user_id:uid});$('gleftOv')?.remove();if(r.error)return toast(r.error.message,'fa-triangle-exclamation');toast('¡Volviste al grupo! 🎉','fa-check');loadGroups();return}
+ if(a==='gdelme'){await setPref(id,{hidden:true});$('gleftOv')?.remove();toast('Grupo eliminado de tu lista','fa-trash-can');loadGroups();return}
+ if(a==='gdelall'){if(Object.values(DEF).includes(id))return toast('Este grupo no se puede eliminar','fa-ban');if(!confirm('¿Eliminar este grupo para TODOS? Se borran sus mensajes y miembros. No se puede deshacer.'))return;const r=await sb.rpc('delete_group_for_all',{p_group:id});$('gleftOv')?.remove();if(r.error)return toast(srvErr(r.error),'fa-triangle-exclamation');delete PF[id];if(chat&&chat.t==='g'&&chat.id===id)window.closeGroupChat();toast('Grupo eliminado para todos','fa-trash-can');loadGroups()}},true);
+
+/* abrir chats: cargar ajustes y respetar privacidad */
+async function dmReason(id){if(!sb||!id||id===uid)return null;const {data}=await sb.from('profiles').select('dm_privacy').eq('id',id).maybeSingle(),p=(data&&data.dm_privacy)||'all';if(p==='all')return null;if(p==='friends'){const f=fr.get(id);return f&&f.status==='accepted'?null:'Esta persona solo recibe mensajes de sus amigos. Agrégala 🤝'}return'Esta persona no recibe mensajes'}
+const ocd2=window.openChatDetail;window.openChatDetail=async function(id,name){await loadPrefs();const why=await dmReason(id);if(why){const r=await sb.from('messages').select('id',{count:'exact',head:true}).is('group_id',null).or(`and(sender.eq.${uid},to_user.eq.${id}),and(sender.eq.${id},to_user.eq.${uid})`);if(!(r.count>0))return toast(why,'fa-lock')}
+ if(chat&&chat.t==='g'&&$('groupChatModal')&&!$('groupChatModal').classList.contains('hidden'))window.closeGroupChat();return ocd2(id,name)};
+const ogc2=window.openGroupChat;window.openGroupChat=async function(gid,title){await loadPrefs();await loadGroupMeta(DEF[gid]||gid);await ogc2(gid,title);const gm=$('groupOptionsMenu');if(gm&&chat&&chat.t==='g'){let bt=$('grpDelAll');if(!bt){gm.insertAdjacentHTML('beforeend','<button id="grpDelAll" data-act="gdelall" class="w-full text-left px-3 py-2 rounded-xl hover:bg-red-900/40 text-red-400 flex items-center gap-2 border-t border-purple-900/40">🗑️ Eliminar grupo para todos</button>');bt=$('grpDelAll')}bt.dataset.id=chat.id;bt.classList.toggle('hidden',grpOf(chat.id).owner!==uid||Object.values(DEF).includes(chat.id))}};
+
+/* menú al tocar un mensaje */
+window.openMessageOptions=function(id,type,ctx){selectedMessageRef={id,type,context:ctx};const el=$('msg_'+id),su=el&&el.dataset.sender,me=!su||su===uid,L=$('msgOptList');if(!L)return;
+ const B=(h,cls,tx)=>`<button ${h} class="w-full text-left px-3 py-2.5 rounded-xl ${cls} font-bold">${tx}</button>`,N='bg-[#120c22] hover:bg-purple-900/50 ';let h='';
+ if(!me)h+=B('onclick="msgOptProfile()"',N+'text-pink-300','👤 Ver perfil')+B('onclick="msgOptDm()"',N+'text-purple-200','💬 Enviar mensaje');
+ if(type!=='photo')h+=B('onclick="copyCurrentSelectedMessage()"',N+'text-purple-200','📋 Copiar texto')+B('data-act="gtrm"',N+'text-sky-300','🌐 Traducir en Google');
+ if(me)h+=B('onclick="deleteSelectedMessage()"','bg-red-950/40 border border-red-500/30 text-red-300','🗑️ Eliminar mensaje (para todos)');
+ else h+=B('data-act="repm"',N+'text-orange-300','🚩 Reportar mensaje')+B('data-act="blkm"',N+'text-red-400','🚫 Bloquear a esta persona');
+ L.innerHTML=h;$('messageOptionsModal').classList.remove('hidden')};
+const msgSender=()=>{const el=$('msg_'+(selectedMessageRef&&selectedMessageRef.id));return el&&el.dataset.sender};
+window.msgOptProfile=function(){const u=msgSender();closeMessageOptions();if(u)requireAuthAction(()=>openPublicProfile(u))};
+window.msgOptDm=function(){const u=msgSender();closeMessageOptions();if(u)requireAuthAction(()=>openChatDetail(u,names[u]))};
+
+/* privacidad de mensajes en mi perfil */
+const DMH={all:'Cualquier persona puede escribirte, aunque no la conozcas.',friends:'Solo tus amigos pueden escribirte.',none:'Nadie puede escribirte. Tú sí puedes escribir a los demás.'};
+async function loadDmPriv(){const c=$('dmPrivCard');if(!c)return;c.style.display=uid?'':'none';if(!uid||!sb)return;const {data}=await sb.from('profiles').select('dm_privacy').eq('id',uid).maybeSingle();paintDm((data&&data.dm_privacy)||'all')}
+function paintDm(v){document.querySelectorAll('#dmPrivCard [data-dm]').forEach(b=>{b.className=(b.dataset.dm===v?'bg-pink-600 text-white':'bg-[#2d234a] text-white')+' py-2 rounded-lg text-xs font-bold'});const h=$('dmPrivHint');if(h)h.textContent=DMH[v]||''}
+document.addEventListener('click',async e=>{const b=e.target.closest('#dmPrivCard [data-dm]');if(!b||!uid||!sb)return;const v=b.dataset.dm,{error}=await sb.from('profiles').update({dm_privacy:v}).eq('id',uid);if(error)return toast('No pude guardar','fa-triangle-exclamation');paintDm(v);toast('Listo ✅','fa-lock')});
+const ost3=window.switchTab;window.switchTab=function(t){ost3(t);if(t==='tab-miparche')setTimeout(loadDmPriv,120)};
+
 /* --- encabezado nuevo, íconos de respaldo y notificaciones push --- */
 const IC={xmark:'✕',comments:'💬',comment:'💬',camera:'📷',image:'🖼️','user-plus':'➕','trash-can':'🗑️',fire:'🔥',clock:'🕒','user-circle':'👤',user:'👤','user-shield':'🛡️','location-dot':'📍','map-location-dot':'📍','location-crosshairs':'🎯',plus:'➕','people-group':'👥',users:'👥','users-viewfinder':'👥',radar:'📡','satellite-dish':'📡',eye:'👁️','ellipsis-vertical':'⋮',broom:'🧹','right-from-bracket':'↪',retweet:'🔄','paper-plane':'➤','circle-info':'ℹ️',bell:'🔔','bell-slash':'🔕','wand-magic-sparkles':'✨','layer-group':'▦','shield-halved':'🛡️','photo-film':'🖼️','triangle-exclamation':'⚠️',copy:'📋',google:'G',lock:'🔒',check:'✔',key:'🔑',wifi:'📶',ban:'🚫',flag:'🚩',envelope:'✉️',star:'⭐'};
 function iconFallback(){const on=()=>{const s=document.createElement('style');s.textContent='.fa-solid::before,.fa-regular::before,.fa-brands::before{font-family:system-ui,"Segoe UI Emoji","Apple Color Emoji",sans-serif!important;font-weight:400!important}'+Object.entries(IC).map(([k,x])=>`.fa-${k}::before{content:"${x}"!important}`).join('');document.head.appendChild(s)};
@@ -2556,7 +2610,7 @@ async function modAct(a,rid,u){let reason=null;
 const gate=v=>{const g=$('welcomeGate');if(g)g.style.display=v?'flex':'none'};
 
 
-document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b){const mm=e.target.closest('[data-msg]');if(mm)openMessageOptions(mm.dataset.msg,mm.dataset.kind,mm.dataset.ctx);return}const a=b.dataset.act,id=b.dataset.id,p=parches.find(x=>x.id===id);
+document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b){if(e.target.closest('[data-prof]'))return;const mm=e.target.closest('[data-msg]');if(mm)openMessageOptions(mm.dataset.msg,mm.dataset.kind,mm.dataset.ctx);return}const a=b.dataset.act,id=b.dataset.id,p=parches.find(x=>x.id===id);
  if(/^ev-/.test(id||'')&&['fuego','opino','share','who','repp','evwa','evsave'].includes(a)){if(a==='fuego')requireAuthAction(()=>evFuego(id));else if(a==='who')toast('Aquí verás quién va cuando el evento sume asistentes 🔥','fa-fire');else if(a==='opino')requireAuthAction(()=>evChat(id));else if(a==='share')evShare(id);else if(a==='evwa'){$('evShOv')?.remove();shareParche(id)}else if(a==='evsave'){evSaved.has(id)?evSaved.delete(id):evSaved.add(id);kset('evS',[...evSaved]);$('evShOv')?.remove();toast(evSaved.has(id)?'🔖 Guardado en tu lista':'Quitado de guardados','fa-bookmark');renderFeed()}return}
  if(a==='ubicar'&&p)window.open(p.q&&p.lat!=null?`https://www.google.com/maps/place/${encodeURIComponent(p.q)}/@${p.lat},${p.lng},17z`:p.q?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.q)}`:p.lat!=null?`https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.title+' '+p.zone+' Medellin')}`,'_blank');
  else if(a==='grupo')requireAuthAction(()=>openGroupChat(id,b.dataset.name))
@@ -2691,7 +2745,7 @@ addEventListener('offline',()=>toast('Sin internet','fa-wifi'));addEventListener
 (async function(){
  buildHeader();initSW();iconFallback();fixGallery();fontBoost();watchProfile();const fc=$('filter-cerca');if(fc)fc.textContent='📍 Cerca (< 5 km)';adsInit();buildAuth();
  
- $('chatsListContainer')?.insertAdjacentHTML('beforebegin','<div class="flex gap-4 mb-2"><button data-act="frl" id="frBtn" class="text-[11px] text-pink-300 underline">👥 Amigos y solicitudes</button><button data-act="blkl" class="text-[11px] text-gray-400 underline">🚫 Usuarios bloqueados</button></div>');const mo=$('messageOptionsModal');if(mo)(mo.firstElementChild||mo).insertAdjacentHTML('beforeend','<button data-act="gtrm" class="w-full text-left px-4 py-2.5 text-xs font-bold text-sky-300">🌐 Traducir en Google</button><button data-act="repm" class="w-full text-left px-4 py-2.5 text-xs font-bold text-orange-300">🚩 Reportar mensaje</button><button data-act="blkm" class="w-full text-left px-4 py-2.5 text-xs font-bold text-red-400">🚫 Bloquear a esta persona</button>');
+ $('chatsListContainer')?.insertAdjacentHTML('beforebegin','<div class="flex gap-4 mb-2"><button data-act="frl" id="frBtn" class="text-[11px] text-pink-300 underline">👥 Amigos y solicitudes</button><button data-act="blkl" class="text-[11px] text-gray-400 underline">🚫 Usuarios bloqueados</button></div>');
  document.querySelectorAll('[onclick="enterAsAdminQuick()"]').forEach(x=>x.style.display='none');
  const z=document.getElementById('newParcheZone');if(z)z.insertAdjacentHTML('afterend','<input id="newParcheImg" type="file" accept="image/*" class="w-full text-[11px] text-gray-300 mt-2">');
  $('newParcheImg')?.insertAdjacentHTML('afterend','<div id="newParcheLoc" class="text-[11px] text-pink-300 mt-2"></div><button type="button" data-act="elegirmapa" class="text-[11px] text-purple-300 underline mt-1">🗺️ Elegir ubicación en el mapa</button><div class="text-[11px] text-gray-300 mt-3">⏳ ¿Cuánto dura el parche?</div><select id="newParcheDur" class="w-full bg-[#2d234a] text-white rounded-xl p-2 text-xs mt-1 border border-purple-500/30"><option value="3">3 horas</option><option value="6">6 horas</option><option value="12">12 horas</option><option value="24" selected>24 horas</option><option value="48">2 días</option><option value="72">3 días</option><option value="168">1 semana</option><option value="720">1 mes</option><option value="custom">📅 Elegir fecha y hora…</option></select><input id="newParcheEnd" type="datetime-local" class="hidden w-full bg-[#2d234a] text-white rounded-xl p-3 text-sm mt-2 border border-purple-500/30"><div class="text-xs text-gray-400 mt-1">Máximo 1 año.</div>');
