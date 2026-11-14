@@ -51,13 +51,15 @@ module.exports = async (req, res) => {
 
   const title = info ? info.title : 'Párchate - MDE (Radar & Parches)';
   const desc = info
-    ? [info.when, info.zone].filter(Boolean).join(' · ') + ' · Mira el plan en Párchate 🔥'
+    ? [info.when, info.zone].filter(Boolean).join(' · ') + ' · Descarga Párchate en Google Play'
     : 'Descubre eventos, planes y grupos en Medellín.';
   let image = origin + '/img/share-banner.png';
   if (info) {
     let photo = info.img && /^https:\/\//.test(info.img) ? info.img : '';
-    if (!photo && /^ev-/i.test(id)) { // foto local del evento: img/ev-xxx.jpg (si existe)
-      try { const f = await fetch(origin + '/img/' + id + '.jpg', { method: 'HEAD' }); if (f.ok) photo = origin + '/img/' + id + '.jpg'; } catch (e) {}
+    if (!photo && /^ev-/i.test(id)) { // foto del evento subida a la carpeta img/ (ev-xxx.jpg, .jpeg o .png)
+      for (const ext of ['jpg', 'jpeg', 'png']) {
+        try { const f = await fetch(origin + '/img/' + id + '.' + ext, { method: 'HEAD' }); if (f.ok) { photo = origin + '/img/' + id + '.' + ext; break; } } catch (e) {}
+      }
     }
     const q = new URLSearchParams({ t: info.title || '', z: info.zone || '', w: info.when || '', g: info.tag || '', e: info.emoji || '', n: String(info.fuegos || 0), o: info.official ? '1' : '0', v: '1' });
     if (photo) q.set('i', photo);
@@ -80,7 +82,11 @@ module.exports = async (req, res) => {
     `<meta name="twitter:image" content="${esc(image)}">`
   ].join('\n');
 
-  html = html.replace(/<title>[^<]*<\/title>/, `<title>${esc(title)}</title>\n${tags}`);
+  // Quien abre el enlace en un Android (y no tiene la app, porque si la tuviera el sistema ya la habría abierto) va a Google Play.
+  // Los robots de WhatsApp no ejecutan JavaScript, así que ven la tarjeta. Con &web=1 se ve la versión web.
+  const play = 'https://play.google.com/store/apps/details?id=com.veltrix.parchate&referrer=utm_source%3Dcompartir';
+  const go = `<script>if(/Android/i.test(navigator.userAgent)&&!/[?&]web=1/.test(location.search))location.replace(${JSON.stringify(play)})</script>`;
+  html = html.replace(/<title>[^<]*<\/title>/, `<title>${esc(title)}</title>\n${tags}\n${go}`);
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=86400');
   res.status(200).send(html);
