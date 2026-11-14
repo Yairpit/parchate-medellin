@@ -5,8 +5,11 @@ const SB_URL = 'https://ofqdizboaexkjjhwtmgs.supabase.co';
 const SB_KEY = 'sb_publishable_pfLexW8EDmF9-_SRjaiKWQ_y16Yar5f';
 
 const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const unq = s => s.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
-const STR = "'((?:[^'\\\\]|\\\\.)*)'";
+const STR = `'((?:[^'\\\\]|\\\\.)*)'|"((?:[^"\\\\]|\\\\.)*)"`;
+const unq = (single, double) => {
+  if (double !== undefined) { try { return JSON.parse('"' + double + '"'); } catch (e) { return double; } }
+  return single.replace(/\\u([0-9a-fA-F]{4})/g, (m, h) => String.fromCharCode(parseInt(h, 16))).replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+};
 
 // Busca un evento oficial dentro del propio index.html (líneas E('...') y PL('...'))
 function findEvent(html, id) {
@@ -14,7 +17,7 @@ function findEvent(html, id) {
   for (const line of html.split('\n')) {
     const m = line.match(/^\s*\[?\s*(E|PL)\(/);
     if (!m) continue;
-    const args = [...line.matchAll(new RegExp(STR, 'g'))].map(x => unq(x[1]));
+    const args = [...line.matchAll(new RegExp(STR, 'g'))].map(x => unq(x[1], x[2]));
     if (args.length < 6) continue;
     const lid = args[0];
     if (lid !== short && lid !== id) continue;
