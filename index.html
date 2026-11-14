@@ -2726,6 +2726,20 @@ const COLS='id,title,zone,tag,cat,lat,lng,img,author,fuegos,created_at,expires_a
 const srvErr=e=>e.code==='P0001'?e.message:e.code==='42501'?'Tu cuenta está suspendida o no tienes permiso para hacer esto.':e.code==='PGRST116'?'Tu mensaje fue bloqueado por seguridad.':e.message;
 const ov=(id,html)=>{let o=$(id);if(!o){o=document.createElement('div');o.id=id;o.className='fixed inset-0 z-[95] bg-black/80 flex items-end justify-center';document.body.appendChild(o)}o.innerHTML=html;return o};
 const SH='bg-[#1f1635] w-full max-w-md rounded-t-3xl p-4 max-h-[85vh] overflow-y-auto';
+/* --- aviso de nueva versión (solo en la app instalada) ---
+   Para avisar de una actualización: sube APP_VER aquí en el nuevo index.html y pon el mismo número en "latest" de version.json */
+const APP_VER=1,PLAY_URL='https://play.google.com/store/apps/details?id=com.veltrix.parchate';
+async function checkUpdate(){if(!NATIVE)return;
+ try{const r=await fetch('https://parchate-medellin.vercel.app/version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();
+  if(!j||!(j.latest>APP_VER))return;
+  const seen=await kget('updSeen');if(seen&&seen.v===j.latest&&Date.now()-seen.at<2*864e5)return;
+  const o=document.createElement('div');o.id='updOv';o.className='fixed inset-0 z-[96] bg-black/80 flex items-center justify-center p-5';
+  o.innerHTML='<div class="bg-[#1f1635] border border-pink-500/40 rounded-3xl p-5 w-full max-w-sm text-center shadow-2xl relative"><button data-act="updno" aria-label="Cerrar" class="absolute top-3 right-4 text-gray-400 text-xl">✕</button><div class="text-5xl mb-2">🚀</div><b class="text-white text-lg block mb-1">¡Hay una nueva versión!</b><p class="text-sm text-gray-300 mb-4">'+esc(j.msg||'Actualiza Párchate para disfrutar las nuevas funciones y mejoras.')+'</p><button data-act="updgo" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 text-white py-3 rounded-2xl font-bold text-sm">Actualizar ahora</button><button data-act="updno" class="w-full text-gray-400 text-xs mt-3 py-1">Ahora no</button></div>';
+  document.body.appendChild(o);window._updV=j.latest}catch(e){}}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-act="updgo"],[data-act="updno"]');if(!b)return;
+ if(b.dataset.act==='updgo'){try{CP('Browser')?CP('Browser').open({url:PLAY_URL}):window.open(PLAY_URL,'_blank')}catch(x){window.open(PLAY_URL,'_blank')}}
+ kset('updSeen',{v:window._updV,at:Date.now()});$('updOv')?.remove()});
+setTimeout(checkUpdate,6000);
 function shareParche(id){const p=parches.find(x=>x.id===id);if(!p)return;
  const txt=`${p.title}${p.zone?' — '+p.zone:''}\nMira el plan en Párchate:\nhttps://parchate-medellin.vercel.app/?parche=${p.id}`,url='https://wa.me/?text='+encodeURIComponent(txt);
  if(NATIVE&&CP('Browser'))CP('Browser').open({url});else window.open(url,'_blank')}
