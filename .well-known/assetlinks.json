@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.veltrix.parchate",
+      "sha256_cert_fingerprints": [
+        "01:8B:D5:D8:93:94:09:C1:12:F2:A0:2F:75:9E:4D:4E:7F:1B:14:62:9F:53:0C:7C:F8:9F:1B:04:76:1C:DE:2C"
+      ]
+    }
+  }
+]
