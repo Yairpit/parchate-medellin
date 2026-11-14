@@ -1,14 +1,15 @@
 {
-  "rewrites": [
-    { "source": "/", "has": [{ "type": "query", "key": "parche" }], "destination": "/api/share" }
-  ],
-  "headers": [
+  "routes": [
     {
-      "source": "/version.json",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Cache-Control", "value": "no-store" }
-      ]
-    }
+      "src": "/version.json",
+      "headers": { "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" },
+      "continue": true
+    },
+    {
+      "src": "/",
+      "has": [{ "type": "query", "key": "parche" }],
+      "dest": "/api/share"
+    },
+    { "handle": "filesystem" }
   ]
 }
