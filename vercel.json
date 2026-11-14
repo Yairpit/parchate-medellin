@@ -6,6 +6,11 @@
       "continue": true
     },
     {
+      "src": "/.well-known/assetlinks.json",
+      "headers": { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      "continue": true
+    },
+    {
       "src": "/",
       "has": [{ "type": "query", "key": "parche" }],
       "dest": "/api/share"
